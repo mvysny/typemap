@@ -7,10 +7,14 @@ module DefinitionErrorSpec
     def initialize = @a = 1
   end
 
-  class NeedsArguments < Data.define(:a)
+  class NeedsArguments
     extend Typemap::Constrain
 
+    attr_accessor :a
+
     constrain :a, type: "Integer"
+
+    def initialize(value) = @a = value
   end
 
   class NoProperties

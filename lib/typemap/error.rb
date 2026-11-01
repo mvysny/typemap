@@ -6,7 +6,7 @@ module Typemap
   end
 
   # The data does not fit the class: a value of the wrong type or outside its limits, an unknown
-  # key, a failed `validate`. The file's author fixes it; the message starts with the path of
+  # key, a required key missing, a failed `validate`. The file's author fixes it; the message starts with the path of
   # the offending value, `ballooning.raise_at_percent: expected Integer, got "70"`.
   class DataError < Error
     # @return [String] the dotted path of the offending value, `""` for the root object

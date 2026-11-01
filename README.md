@@ -55,17 +55,21 @@ File.write(path, JSON.pretty_generate(mapper.dump(state)))            # String k
   default's nested object, so a file that sets one nested key keeps the other nested defaults.
 - **An unknown key raises**, unless `unknown: :ignore`.
 - **Keys may be Strings or Symbols** (`JSON.load_file(path, symbolize_names: true)` works).
-- **`dump` writes properties in declaration order** and checks every value against its type, so
-  a bug that put a wrong value in an object is caught before it reaches the file.
+- **`dump` writes properties in declaration order** and checks every value as `load` would — its
+  type, its limits, a required key, the class's `validate` — so a bug that put a wrong value in
+  an object is caught before it reaches the file.
+- **Every object in the result is validated**, the ones the file left out included: a default
+  nested object must pass its limits and `validate` too.
 - **The first problem raises.** Typemap does not collect every error.
 - **A mapper is safe to share between threads**; it works out each class once and remembers it.
 
 ## Your class
 
-Two shapes of class map, and either must build with a bare `new` — that instance is the default:
+Two shapes of class map. A bare `new` is the default instance: every key the file leaves out
+keeps its value there.
 
-- **A data class**, `Data.define`: its properties are its members. Give every member a default
-  with `def initialize(a: 1, b: "x") = super`.
+- **A data class**, `Data.define`: its properties are its members. Give a member a default with
+  `def initialize(a: 1, b: "x") = super`; a member without one is a [required key](#required-keys).
 - **An accessor class**, mutable: its properties are its **public reader + writer pairs** —
   `attr_accessor`s, or a hand-written `def foo` / `def foo=(value)`, inherited ones included.
   It is built with a bare `new`, then a setter per property.
@@ -91,9 +95,43 @@ end
 An accessor that is not a setting goes `private`, or stays public under `ignore`. Left public, it
 has no type, and Typemap raises when it first reads the class — it never serializes it quietly.
 
-**Validation across properties** goes in the class's own `validate`, which Typemap calls after
-building the object, nested objects first; whatever it raises becomes a `Typemap::DataError`
-carrying the object's path.
+**Validation across properties** goes in the class's own `validate`, which Typemap calls on
+every object once the whole result is built, nested objects first, on `load` and on `dump`;
+whatever it raises becomes a `Typemap::DataError` carrying the object's path.
+
+### Required keys
+
+A key the file must give, one with no sensible default, such as an API key:
+
+```ruby
+class Llm < Data.define(:api_key, :model)
+  extend Typemap::Constrain
+
+  constrain :api_key, :model, type: "String"
+
+  def initialize(api_key:, model: "gpt-5") = super   # api_key has no default: required
+end
+
+class Secret                                          # an accessor class
+  extend Typemap::Constrain
+
+  attr_accessor :api_key
+
+  constrain :api_key, type: "String?", required: true
+
+  def initialize = @api_key = nil
+end
+```
+
+- **A data class: a keyword without a default.** `api_key` stays a non-nil `String`. A plain
+  `Data.define(:a, :b)` requires every member. `required:` on a data class raises.
+- **An accessor class: `required: true` on a `T?` defaulting to `nil`.** A bare `new` sets every
+  property, so the type admits the `nil` and the app handles it (`config.api_key or raise`). For
+  a non-nil type, use a data class.
+- **A missing key raises with its full path**, `llm.api_key: required`, also when the file leaves
+  out the whole `[llm]` table. An accessor class refuses an explicit JSON `null` too; a data
+  class's `String?` keyword takes it.
+- **`dump` raises** on a required accessor still `nil`, since the file would not load back.
 
 ## Types
 
@@ -139,7 +177,9 @@ Config#port: its default nil does not fit Integer
 Config#port: format: /x/ limits only a String, not Integer
 Config#ratio: unsupported type: Set[…]
 Config: constrain names prot, not a property
-Config: must build with a bare new, its default instance (missing keyword: :port)
+Config#api_key: required: on String, which can never be missing; required: takes a String? defaulting to nil
+Config: must build with a bare new, its default instance (wrong number of arguments (given 0, expected 1))
+Config#initialize takes [[:keyrest, :opts]]; Typemap reads which keys are required only from `name:` and `name: default` keywords
 ```
 
 Both `Typemap::DataError` and `Typemap::DefinitionError` are `Typemap::Error`s.
@@ -198,11 +238,9 @@ MAPPER = Typemap::Mapper.new
 
 def load_config
   file = Paths.config_file("myapp")
-  return Config.new unless file
-
-  MAPPER.load(Config, Tomlrb.load_file(file))
+  MAPPER.load(Config, file ? Tomlrb.load_file(file) : {})   # no file: the defaults, or `api_key: required`
 rescue Typemap::DataError => e
-  abort "#{file}: #{e.message}"   # ~/.config/myapp/config.toml: port: expected Integer, got "80"
+  abort "#{file || "config.toml"}: #{e.message}"   # ~/.config/myapp/config.toml: port: expected Integer, got "80"
 end
 
 def load_state

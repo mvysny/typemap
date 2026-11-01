@@ -32,6 +32,19 @@ module Typemap
         end
       end
 
+      # A bare `new` sets every property, so none is required by the class itself; `required:`
+      # says it instead.
+      #
+      # @param _klass [Class]
+      # @param _names [Array<Symbol>]
+      # @return [Array<Symbol>] always empty
+      def self.required_keywords(_klass, _names) = []
+
+      # @param _klass [Class]
+      # @param _names [Array<Symbol>] the properties `constrain` gave `required:`
+      # @return [void]
+      def self.check_required_option(_klass, _names) = nil
+
       # @param object [Object]
       # @param name [Symbol]
       # @return [Object] the property's value

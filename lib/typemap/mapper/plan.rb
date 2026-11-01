@@ -2,7 +2,7 @@
 
 module Typemap
   class Mapper
-    # One mappable property: its name, its {Type} and its {Limits}.
+    # One mappable property: its name, its {Type}, its {Limits}, and whether `required:` was given.
     #
     # @!attribute [r] name
     #   @return [Symbol]
@@ -10,13 +10,19 @@ module Typemap
     #   @return [Object] a {Type}
     # @!attribute [r] limits
     #   @return [Limits]
+    # @!attribute [r] required
+    #   @return [Boolean] `constrain required: true`: a loaded or dumped object must not hold `nil`
     #
     # @api private
-    Property = Data.define(:name, :type, :limits)
+    Property = Data.define(:name, :type, :limits, :required)
 
     # What the mapper knows about one class, worked out once — when the class is first read —
-    # and checked then, whatever a file will hold: the shape, and every property with its type
-    # and limits. Building it raises {DefinitionError} for a class that cannot be mapped.
+    # and checked then, whatever a file will hold: the shape, every property with its type and
+    # limits, and the bare `new`'s values. Building it raises {DefinitionError} for a class that
+    # cannot be mapped.
+    #
+    # A data class with a required keyword has no bare `new`: {#check_default} runs on each
+    # load's base instead.
     #
     # @!attribute [r] klass
     #   @return [Class]
@@ -24,9 +30,12 @@ module Typemap
     #   @return [Module] {DataShape} or {AccessorShape}
     # @!attribute [r] properties
     #   @return [Array<Property>] in declaration order
+    # @!attribute [r] required_keywords
+    #   @return [Array<Symbol>] the keywords a data class cannot build without; a load with no base
+    #     must find each in the file
     #
     # @api private
-    Plan = Data.define(:klass, :shape, :properties) do
+    Plan = Data.define(:klass, :shape, :properties, :required_keywords) do
       # @param klass [Class]
       # @param types [#type_for] the mapper's type strategy
       # @return [Plan]
@@ -35,14 +44,18 @@ module Typemap
         raise DefinitionError, "#{klass.inspect} is not a class" unless klass.is_a?(Class)
 
         shape = klass < Data ? DataShape : AccessorShape
-        default = bare_new(klass)
         names = property_names(klass, shape)
         constraints = Constrain.constraints_for(klass)
         stray = constraints.keys - names
         raise DefinitionError, "#{klass}: constrain names #{stray.join(", ")}, not a property" unless stray.empty?
 
-        properties = names.map { |name| property(klass, shape, default, name, constraints[name], types) }
-        new(klass: klass, shape: shape, properties: properties)
+        shape.check_required_option(klass, constraints.select { |_, constraint| constraint.required }.keys)
+        required_keywords = shape.required_keywords(klass, names)
+        default = bare_new(klass) if required_keywords.empty?
+        properties = names.map { |name| property(klass, name, constraints[name], types) }
+        plan = new(klass: klass, shape: shape, properties: properties, required_keywords: required_keywords)
+        plan.check_default(default) if default
+        plan
       end
 
       # @raise [DefinitionError] unless `klass.new` works with no arguments
@@ -64,21 +77,36 @@ module Typemap
         names
       end
 
-      def self.property(klass, shape, default, name, constraint, types)
+      def self.property(klass, name, constraint, types)
         type = types.type_for(klass, name, constraint)
         limits = constraint ? Limits.new(in: constraint.in, format: constraint.format) : Limits.none
         limits.check_against(type)
-        value = shape.read(default, name)
-        raise DefinitionError, "its default #{value.inspect} does not fit #{type}" unless type.accepts?(value)
-
-        begin
-          limits.check(value, "")
-        rescue DataError => e
-          raise DefinitionError, "its default #{e.message}"
+        required = constraint&.required || false
+        if required && !type.accepts?(nil)
+          raise DefinitionError, "required: on #{type}, which can never be missing; required: takes a " \
+                                 "#{type}? defaulting to nil"
         end
-        Property.new(name: name, type: type, limits: limits)
+        Property.new(name: name, type: type, limits: limits, required: required)
       rescue DefinitionError => e
         raise DefinitionError, "#{klass}##{name}: #{e.message}"
+      end
+
+      # Checks the values of a default instance — the bare `new`, or a load's base built from the
+      # required keywords alone — against their types and limits; a required keyword's value is
+      # the file's, so it is left to the load.
+      #
+      # @param default [Object] an instance of {#klass}
+      # @return [void]
+      # @raise [DefinitionError] naming `Klass#property`
+      def check_default(default)
+        properties.each do |property|
+          next if required_keywords.include?(property.name)
+
+          value = shape.read(default, property.name)
+          check_default_value(property, value)
+        rescue DefinitionError => e
+          raise DefinitionError, "#{klass}##{property.name}: #{e.message}"
+        end
       end
 
       # @return [Array<Class>] the classes of nested properties, to be planned too
@@ -92,6 +120,22 @@ module Typemap
       # @return [Object] a new instance
       def build(base, loaded)
         shape == DataShape ? shape.build(klass, base, loaded) : shape.build(klass, base, loaded, names)
+      end
+
+      private
+
+      def check_default_value(property, value)
+        if property.required && !value.nil?
+          raise DefinitionError, "required: its default must be nil, so a file that leaves the key out fails, " \
+                                 "not #{value.inspect}"
+        end
+        unless property.type.accepts?(value)
+          raise DefinitionError, "its default #{value.inspect} does not fit #{property.type}"
+        end
+
+        property.limits.check(value, "")
+      rescue DataError => e
+        raise DefinitionError, "its default #{e.message}"
       end
     end
   end

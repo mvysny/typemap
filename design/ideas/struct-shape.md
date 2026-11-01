@@ -37,4 +37,7 @@ adding `Struct` is a `StructShape` beside `DataShape` and `AccessorShape` in
 - `Q_struct_order` — `members` order is declaration order; is `to_h` the dump, or the shape's
   own walk through the getters? The walk keeps nested objects and `ignore` working the same as
   for the other shapes.
+- `Q_struct_required` — a shape also says which keys are required (`D_required_keys`). A
+  `Struct` built bare and then set is an accessor class there, so `required:` on a `T?`; but a
+  `keyword_init: true` one could, like `Data`, read its keywords instead. Which?
 - `Q_who_asks` — which app wants it first; until one does, it stays here.

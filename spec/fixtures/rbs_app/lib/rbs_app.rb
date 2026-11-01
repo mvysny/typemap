@@ -29,6 +29,16 @@ module RbsApp
     end
   end
 
+  class Secret
+    extend Typemap::Constrain
+
+    attr_accessor :api_key
+
+    constrain :api_key, required: true # the type, String?, from the signature
+
+    def initialize = @api_key = nil
+  end
+
   class Twice
     extend Typemap::Constrain
 

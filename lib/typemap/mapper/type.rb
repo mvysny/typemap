@@ -4,12 +4,14 @@ module Typemap
   class Mapper
     # The types the mapper checks a value against — the small subset of RBS it supports, whether
     # the type came from `constrain type:` or from `sig/*.rbs` (`D_types_declared`). Each type
-    # answers four questions:
+    # answers five questions:
     #
     # - `load(value, path, session, base)` — the value as the property holds it, or a
     #   {DataError}; strict, never coerced, a whole number between Integer and Float aside;
     # - `dump(value, mapper, path)` — the value as plain Hash/Array/scalar data;
-    # - `accepts?(value)` — whether a default fits, checked once when the class is first read;
+    # - `each_object(value, path) { |object, path| }` — the app's objects inside a value that has
+    #   passed `load` or `dump`, for the validation that walks the result;
+    # - `accepts?(value)` — whether a default fits;
     # - `limits` — which of `constrain`'s `in:` / `format:` the type can take.
     #
     # `to_s` is the RBS spelling, used in every message.
@@ -48,6 +50,7 @@ module Typemap
         end
 
         def dump(value, _mapper, path) = (value.is_a?(klass) ? value : Type.mismatch(self, value, path))
+        def each_object(_value, _path) = nil
         def accepts?(value) = value.is_a?(klass)
         def limits = klass == String ? %i[in format] : %i[in]
         def numeric? = klass != String
@@ -59,6 +62,7 @@ module Typemap
       Bool = Data.define do
         def load(value, path, _session, _base) = (accepts?(value) ? value : Type.mismatch(self, value, path))
         def dump(value, _mapper, path) = (accepts?(value) ? value : Type.mismatch(self, value, path))
+        def each_object(_value, _path) = nil
         def accepts?(value) = [true, false].include?(value)
         def limits = []
         def numeric? = false
@@ -74,6 +78,7 @@ module Typemap
       Literals = Data.define(:values) do
         def load(value, path, _session, _base) = (accepts?(value) ? value : Type.mismatch(self, value, path))
         def dump(value, _mapper, path) = (accepts?(value) ? value : Type.mismatch(self, value, path))
+        def each_object(_value, _path) = nil
         def accepts?(value) = values.any? { |literal| literal.eql?(value) }
         def limits = []
         def numeric? = false
@@ -88,6 +93,7 @@ module Typemap
       Optional = Data.define(:inner) do
         def load(value, path, session, base) = (value.nil? ? nil : inner.load(value, path, session, base))
         def dump(value, mapper, path) = (value.nil? ? nil : inner.dump(value, mapper, path))
+        def each_object(value, path, &) = (inner.each_object(value, path, &) unless value.nil?)
         def accepts?(value) = value.nil? || inner.accepts?(value)
         def limits = inner.limits
         def numeric? = inner.numeric?
@@ -108,6 +114,10 @@ module Typemap
         def dump(value, mapper, path)
           Type.mismatch(self, value, path) unless value.is_a?(Array)
           value.each_with_index.map { |item, i| element.dump(item, mapper, "#{path}[#{i}]") }
+        end
+
+        def each_object(value, path, &)
+          value.each_with_index { |item, i| element.each_object(item, "#{path}[#{i}]", &) }
         end
 
         def accepts?(value) = value.is_a?(Array) && value.all? { |item| element.accepts?(item) }
@@ -133,6 +143,8 @@ module Typemap
           Type.string_keys(raw, path).to_h { |key, item| [key, value.dump(item, mapper, Type.child(path, key))] }
         end
 
+        def each_object(raw, path, &) = raw.each { |key, item| value.each_object(item, Type.child(path, key), &) }
+
         def accepts?(raw) = raw.is_a?(Hash) && raw.all? { |key, item| key.is_a?(String) && value.accepts?(item) }
         def limits = []
         def numeric? = false
@@ -155,6 +167,8 @@ module Typemap
           Type.mismatch(self, value, path) unless value.is_a?(klass)
           mapper.dump_object(value, path)
         end
+
+        def each_object(value, path) = yield(value, path)
 
         def accepts?(value) = value.is_a?(klass)
         def limits = []

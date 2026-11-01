@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-# An anonymous accessor class with one property, `value`, of the given type, default and limits.
+# An anonymous accessor class with one property, `value`, of the given type, default and options.
 module Holder
   # @param type [String] the RBS type string
   # @param default [Object] what a bare `new` sets
-  # @param limits [Hash] `in:` / `format:`
+  # @param limits [Hash] `constrain`'s other options: `in:`, `format:`, `required:`
   # @return [Class]
   def self.of(type, default, **limits)
     klass = Class.new do

@@ -5,6 +5,7 @@ module Typemap
   #
   #     constrain :raise_at_percent, :shrink_at_percent, type: "Integer", in: 1..100
   #     constrain :pinned_vms, type: "Array[String]"
+  #     constrain :api_key, type: "String?", required: true   # an accessor class's nil default
   #     ignore :on_change
   #
   # Each call records metadata and defines nothing — no accessor, no default, no `initialize`;
@@ -21,7 +22,9 @@ module Typemap
     #   @return [Range, Array, nil] the allowed range, or the allowed values
     # @!attribute [r] format
     #   @return [Regexp, nil] the pattern a String must match
-    Constraint = Data.define(:type, :type_owner, :in, :format)
+    # @!attribute [r] required
+    #   @return [Boolean, nil] whether a loaded or dumped object must hold a non-nil value
+    Constraint = Data.define(:type, :type_owner, :in, :format, :required)
 
     # Records a type and limits for one or more properties; several calls for one property merge,
     # but one option given twice raises.
@@ -31,13 +34,16 @@ module Typemap
     #   never a Ruby class, so nil-ability is always spelled out (`D_types_declared`)
     # @param in [Range, Array, nil] the allowed range of a number, or the allowed values
     # @param format [Regexp, nil] the pattern a String must match
+    # @param required [Boolean, nil] `true`: the file must give this key, on an accessor class
+    #   whose property is a `T?` defaulting to `nil` — a loaded or dumped object still holding
+    #   `nil` raises. A data class says it by a keyword without a default instead.
     # @return [void]
     # @raise [ArgumentError] on no names, nothing to record, a wrongly typed option, or an option
     #   already given for that property
-    def constrain(*names, type: nil, in: nil, format: nil)
+    def constrain(*names, type: nil, in: nil, format: nil, required: nil)
       allowed = binding.local_variable_get(:in)
-      check_constrain_args(names, type, allowed, format)
-      given = { type: type, in: allowed, format: format }.compact
+      check_constrain_args(names, type, allowed, format, required)
+      given = { type: type, in: allowed, format: format, required: required }.compact
       given[:type_owner] = self if type
       names.each do |name|
         entry = typemap_constraints[name] ||= {}
@@ -90,7 +96,7 @@ module Typemap
       end
       merged.transform_values do |options|
         Constraint.new(type: options[:type], type_owner: options[:type_owner], in: options[:in],
-                       format: options[:format])
+                       format: options[:format], required: options[:required])
       end
     end
 
@@ -102,14 +108,17 @@ module Typemap
 
     private
 
-    def check_constrain_args(names, type, allowed, format)
+    def check_constrain_args(names, type, allowed, format, required)
       raise ArgumentError, "constrain: name at least one property" if names.empty?
 
       names.each do |name|
         raise ArgumentError, "constrain: #{name.inspect} is not a Symbol" unless name.is_a?(Symbol)
       end
-      if [type, allowed, format].all?(&:nil?)
-        raise ArgumentError, "constrain #{names.inspect}: give type:, in: or format:"
+      if [type, allowed, format, required].all?(&:nil?)
+        raise ArgumentError, "constrain #{names.inspect}: give type:, in:, format: or required:"
+      end
+      unless required.nil? || [true, false].include?(required)
+        raise ArgumentError, "constrain: required: must be true or false, got #{required.inspect}"
       end
       unless type.nil? || type.is_a?(String)
         raise ArgumentError, "constrain: type: must be an RBS type String, got #{type.inspect}"

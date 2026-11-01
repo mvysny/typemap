@@ -78,8 +78,35 @@ inherited or mixed in. Why not the ivars a bare `new` sets: a cache, a mutex or 
 property would need a line it otherwise does not. An accessor that is not a setting goes
 `private`, or stays public under `ignore`; left public, it has no declared type and raises when
 Typemap first reads the class. The class must build with a bare `new`, which is its default
-instance, so there are no required keys yet. An immutable plain class has no writers and so no
-properties: immutable means `Data`.
+instance, so a required key is spelled `required:` (`D_required_keys`). An immutable plain class
+has no writers and so no properties: immutable means `Data`.
+
+## D_required_keys — Why is a data class's required key a keyword without a default, and an accessor class's `required:`?
+
+A key is required when it has no default, whatever its type: `Data.define(:a)` won't build
+without `a`, nor will Kotlin's `val a: String?`. A data class can say "no default", so Typemap
+reads `initialize` — `name:` required, `name: x` not — and the app gets a non-nil `String`;
+`required:` there would be a second spelling, and raises. A bare `new` sets every accessor, so
+`required: true` marks a `T?` whose `nil` default must not survive a load. Why not read it off
+the type: a `String` defaulting to `"x"` is optional. Why not a `String` defaulting to `nil` as
+"required": a forgotten default would quietly become a required key, and the signature would lie
+about the bare instance. Why not `required:` on by default: the partial config file is the main
+use, and `RBSTypes` would need a line per optional property. Why no `not_nil:`: refusing a JSON
+`null` that type and default allow has no known use. The cost: a data class with a required
+keyword has no default instance, so its other defaults are checked on each load.
+
+## D_validation_phase — Why do `load` and `dump` validate the whole result, after the conversion?
+
+A check per key present misses an object the file never mentions: a missing `[llm]` table keeps
+the default's nested object, its `required:` `api_key` still `nil`. So validation walks the
+finished tree, whatever the file held — per object, nested objects first, the limits, then
+`required:`, then `validate`, which may so assume the limits passed. Why on `dump` too: an app
+that changes its state in code could otherwise write a file the next `load` rejects. Why types
+stay in the conversion: there is nothing to build from `"70"` for an Integer, and the limits
+assume the type — `in: 1..100` on a String is nonsense. Why not call `validate` on the default
+when the class is first read: a class with a required key can't pass it on its `nil` default, and
+a `validate` written for loaded objects may crash on `nil`; the default meets it on every load
+anyway. Why the first problem only: nothing has asked for every violation at once.
 
 ## D_whole_numbers — Why does a Float take `5` and an Integer `5.0`, when nothing else converts?
 

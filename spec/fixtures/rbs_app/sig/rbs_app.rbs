@@ -19,6 +19,10 @@ module RbsApp
     attr_accessor ballooning: Ballooning
   end
 
+  class Secret
+    attr_accessor api_key: String?
+  end
+
   class Twice
     attr_accessor a: Integer
   end

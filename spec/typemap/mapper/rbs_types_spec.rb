@@ -32,6 +32,11 @@ RSpec.describe Typemap::Mapper::RBSTypes do
     assert_equal "hi", mapper.load(RbsApp::State, { "note" => "hi" }).note
   end
 
+  it "takes constrain required: for a property the signature types" do
+    assert_equal "api_key: required", assert_raises(Typemap::DataError) { mapper.load(RbsApp::Secret, {}) }.message
+    assert_equal "k", mapper.load(RbsApp::Secret, { "api_key" => "k" }).api_key
+  end
+
   it "raises on a type declared both in the signature and by constrain" do
     error = assert_raises(Typemap::DefinitionError) { mapper.load(RbsApp::Twice, {}) }
     assert_match(%r{RbsApp::Twice#a: type declared twice: in .*sig/rbs_app\.rbs:\d+ and by `constrain type:`},

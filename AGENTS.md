@@ -37,7 +37,7 @@ Every fact lives in exactly one of these; the others link to it.
 - **Nothing under `lib/` requires `rbs` at load time.** Only `RBSTypes.new` does, so an app without signatures never needs the gem.
 - **Every type, from either strategy, is built by `TypeBuilder`.** A strategy building its own lets the two subsets drift; a spec feeds both the same strings. See `D_types_declared`.
 - **Loading never changes a default.** The base a load starts from may be a constant the app shares; a shape builds a new object instead.
-- **A class is fully checked the first time the mapper reads it.** A check deferred to a key's first appearance hides the gap until a user sets that key; the flow is in architecture.md.
+- **A class is fully checked the first time the mapper reads it.** A check deferred to a key's first appearance hides the gap until a user sets that key; the flow is in architecture.md. The one exception: a data class with a required keyword has no default instance, so its defaults are checked on each load (`D_required_keys`).
 
 ## Module map
 
