@@ -1,6 +1,6 @@
 # JSON Schema as a third type strategy
 
-Not the first thing built: Confect has `BasicTypes` (`constrain`) and `RBSTypes` (`sig/`). A JSON Schema
+Not the first thing built: Typemap has `BasicTypes` (`constrain`) and `RBSTypes` (`sig/`). A JSON Schema
 may come later as another way to give the same types and limits, through **json_schemer**.
 
 ## The shape of it
@@ -41,7 +41,7 @@ rasie: 1                → object property at `/ballooning/rasie` is a disallow
 - **Verbose by hand** for what one `constrain` line says.
 - **`70.0` passes as an Integer**, against strict types; it needs a check of our own.
 - **Four runtime gems**: hana, regexp_parser, simpleidn and bigdecimal — fine as the app's
-  optional dependency, as `rbs` is, never Confect's.
+  optional dependency, as `rbs` is, never Typemap's.
 - Cross-property rules and custom types (`"8 GiB"`) stay in `validate` and the mapper either way.
 
 ## TOML

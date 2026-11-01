@@ -12,11 +12,11 @@ require_relative "mapper/accessor_shape"
 require_relative "mapper/limits"
 require_relative "mapper/plan"
 
-module Confect
+module Typemap
   # Turns a parsed file — a Hash, from `Tomlrb.load_file`, `JSON.load_file` or
   # `YAML.safe_load_file` — into an instance of a class you already wrote, and back:
   #
-  #     mapper = Confect::Mapper.new
+  #     mapper = Typemap::Mapper.new
   #     config = mapper.load(Config, Tomlrb.load_file(path))
   #     state  = mapper.load(State, JSON.load_file(path), unknown: :ignore)
   #     File.write(path, JSON.pretty_generate(mapper.dump(state)))

@@ -12,8 +12,8 @@ doc-comment content has crept in.
 
 ## Wiring
 
-- `Confect::Mapper` is the one entry point; it holds a **type strategy** (`BasicTypes` or `RBSTypes`, chosen by the app, never detected) and a cache of one `Plan` per class.
-- The class side talks to the mapper only through `Confect::Constrain`, which records metadata on the class and defines nothing (`D_constrain_macro`); the mapper never touches a class's ivars.
+- `Typemap::Mapper` is the one entry point; it holds a **type strategy** (`BasicTypes` or `RBSTypes`, chosen by the app, never detected) and a cache of one `Plan` per class.
+- The class side talks to the mapper only through `Typemap::Constrain`, which records metadata on the class and defines nothing (`D_constrain_macro`); the mapper never touches a class's ivars.
 - Both strategies turn a type into the same syntax tree — `TypeParser` for `constrain` strings, the `rbs` gem's AST for `sig/` — and hand it to `TypeBuilder`, so they accept exactly the same subset (`D_types_declared`).
 - A **shape** — `DataShape` or `AccessorShape`, picked by `klass < Data` — lists, reads and builds a class's properties; the mapper never branches on the kind of class elsewhere (`D_accessor_properties`).
 - Each `Type` checks, loads and dumps its own values; `ClassRef` is the one that recurses, back into the mapper.
@@ -39,4 +39,4 @@ doc-comment content has crept in.
 
 ## Where to start reading
 
-`lib/confect/mapper.rb` — `load`, `dump`, `plan_for` and the `Session`; then `mapper/plan.rb` for every rule checked when a class is first read.
+`lib/typemap/mapper.rb` — `load`, `dump`, `plan_for` and the `Session`; then `mapper/plan.rb` for every rule checked when a class is first read.

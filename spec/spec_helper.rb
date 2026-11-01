@@ -8,7 +8,7 @@ if ENV["COVERAGE"] == "true"
   end
 end
 
-require "confect"
+require "typemap"
 require_relative "support/holder"
 
 RSpec.configure do |config|

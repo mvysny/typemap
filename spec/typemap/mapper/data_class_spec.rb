@@ -2,7 +2,7 @@
 
 module DataClassSpec
   class Ballooning < Data.define(:raise_at_percent, :shrink_at_percent, :pinned_vms)
-    extend Confect::Constrain
+    extend Typemap::Constrain
 
     constrain :raise_at_percent, :shrink_at_percent, type: "Integer", in: 1..100
     constrain :pinned_vms, type: "Array[String]"
@@ -15,7 +15,7 @@ module DataClassSpec
   end
 
   class Config < Data.define(:ballooning, :name)
-    extend Confect::Constrain
+    extend Typemap::Constrain
 
     constrain :ballooning, type: "Ballooning"
     constrain :name, type: "String?"
@@ -24,8 +24,8 @@ module DataClassSpec
   end
 end
 
-RSpec.describe Confect::Mapper, "with a data class" do
-  let(:mapper) { Confect::Mapper.new }
+RSpec.describe Typemap::Mapper, "with a data class" do
+  let(:mapper) { Typemap::Mapper.new }
 
   describe "#load" do
     it "keeps the default of every key the file leaves out" do
@@ -44,7 +44,7 @@ RSpec.describe Confect::Mapper, "with a data class" do
     end
 
     it "raises on an unknown key, with its path" do
-      error = assert_raises(Confect::DataError) { mapper.load(DataClassSpec::Config, { "ballooning" => { "rasie" => 1 } }) }
+      error = assert_raises(Typemap::DataError) { mapper.load(DataClassSpec::Config, { "ballooning" => { "rasie" => 1 } }) }
       assert_equal "ballooning.rasie", error.path
       assert_match(/unknown key; DataClassSpec::Ballooning has raise_at_percent/, error.message)
     end
@@ -55,12 +55,12 @@ RSpec.describe Confect::Mapper, "with a data class" do
     end
 
     it "rejects a value outside its limits" do
-      error = assert_raises(Confect::DataError) { mapper.load(DataClassSpec::Ballooning, { "raise_at_percent" => 170 }) }
+      error = assert_raises(Typemap::DataError) { mapper.load(DataClassSpec::Ballooning, { "raise_at_percent" => 170 }) }
       assert_equal "raise_at_percent: 170 is not in 1..100", error.message
     end
 
     it "calls validate, prefixing its message with the object's path" do
-      error = assert_raises(Confect::DataError) do
+      error = assert_raises(Typemap::DataError) do
         mapper.load(DataClassSpec::Config, { "ballooning" => { "raise_at_percent" => 50 } })
       end
       assert_equal "ballooning: raise_at_percent must be above shrink_at_percent", error.message
@@ -68,12 +68,12 @@ RSpec.describe Confect::Mapper, "with a data class" do
     end
 
     it "raises when the root is not a table" do
-      error = assert_raises(Confect::DataError) { mapper.load(DataClassSpec::Ballooning, [1]) }
+      error = assert_raises(Typemap::DataError) { mapper.load(DataClassSpec::Ballooning, [1]) }
       assert_equal "expected a table of DataClassSpec::Ballooning's properties, got [1]", error.message
     end
 
     it "raises when a nested value is not a table" do
-      error = assert_raises(Confect::DataError) { mapper.load(DataClassSpec::Config, { "ballooning" => 5 }) }
+      error = assert_raises(Typemap::DataError) { mapper.load(DataClassSpec::Config, { "ballooning" => 5 }) }
       assert_equal "ballooning: expected DataClassSpec::Ballooning, got 5", error.message
     end
 
@@ -97,7 +97,7 @@ RSpec.describe Confect::Mapper, "with a data class" do
 
     it "raises on a value its type rejects, with its path" do
       broken = DataClassSpec::Ballooning.new(pinned_vms: [:sym])
-      error = assert_raises(Confect::DataError) { mapper.dump(broken) }
+      error = assert_raises(Typemap::DataError) { mapper.dump(broken) }
       assert_equal "pinned_vms[0]: expected String, got :sym", error.message
     end
   end

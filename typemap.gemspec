@@ -1,21 +1,21 @@
 # frozen_string_literal: true
 
-require_relative "lib/confect/version"
+require_relative "lib/typemap/version"
 
 Gem::Specification.new do |spec|
-  spec.name = "confect"
-  spec.version = Confect::VERSION
+  spec.name = "typemap"
+  spec.version = Typemap::VERSION
   spec.authors = ["Martin Vysny"]
   spec.email = ["martin@vysny.me"]
 
-  spec.summary = "Loads a config file into a Ruby class you already wrote, checking every value."
+  spec.summary = "Maps a Hash onto a Ruby class you already wrote, and back, checking every value."
   spec.description = <<~DESC
-    Confect maps a parsed TOML, JSON or YAML file onto an ordinary Ruby class — a Data class or
-    a plain class with accessors — and back, with strict types from `constrain` lines or RBS
-    signatures, and without the file ever naming a class. To confect is to prepare something
-    from raw ingredients: a raw file in, a checked Ruby object served out.
+    Typemap maps a Hash — a parsed TOML, JSON or YAML file — onto an ordinary Ruby class, a Data
+    class or a plain class with accessors, and back, with strict types from `constrain` lines or
+    RBS signatures, and without the data ever naming a class. It does the mapping and nothing
+    else: reading files and finding them stay with the app.
   DESC
-  spec.homepage = "https://github.com/mvysny/confect"
+  spec.homepage = "https://github.com/mvysny/typemap"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.3.0"
 
@@ -35,6 +35,6 @@ Gem::Specification.new do |spec|
   end
   spec.require_paths = ["lib"]
 
-  # No runtime dependencies, by promise (AGENTS.md): tomlrb, psych, json and rbs are the app's,
-  # required where first used.
+  # No runtime dependencies, by promise (AGENTS.md): rbs is the app's, required only by
+  # Typemap::Mapper::RBSTypes.
 end

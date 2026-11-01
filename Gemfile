@@ -2,7 +2,7 @@
 
 source "https://rubygems.org"
 
-# Specify your gem's dependencies in confect.gemspec
+# Specify your gem's dependencies in typemap.gemspec
 gemspec
 
 gem "irb"
@@ -10,7 +10,7 @@ gem "rake", "~> 13.2"
 
 group :test do
   gem "minitest", "~> 6.0"
-  gem "rbs", "~> 4.2" # Confect::Mapper::RBSTypes; the app's dependency, never the gem's
+  gem "rbs", "~> 4.2" # Typemap::Mapper::RBSTypes; the app's dependency, never the gem's
   gem "rspec-core", "~> 3.13"
   gem "simplecov", "~> 0.22", require: false
 end

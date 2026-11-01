@@ -8,7 +8,7 @@ module RbsApp
   end
 
   class Ballooning < Data.define(:raise_at_percent, :mode, :pinned_vms, :floor)
-    extend Confect::Constrain
+    extend Typemap::Constrain
 
     constrain :raise_at_percent, in: 1..100
 
@@ -16,7 +16,7 @@ module RbsApp
   end
 
   class State
-    extend Confect::Constrain
+    extend Typemap::Constrain
 
     attr_accessor :log_pane_visible, :ballooning, :note
 
@@ -30,7 +30,7 @@ module RbsApp
   end
 
   class Twice
-    extend Confect::Constrain
+    extend Typemap::Constrain
 
     attr_accessor :a
 

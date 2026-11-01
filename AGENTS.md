@@ -1,20 +1,21 @@
-# Confect — AGENTS.md
+# Typemap — AGENTS.md
 
 ## What this is
 
-Confect loads a config file into a Ruby class you already wrote, and checks every value on the
-way: `"70"` is never 70, and the file never names a class. Your class stays yours — a
+Typemap maps a Hash onto a Ruby class you already wrote, and back, checking every value on the
+way: `"70"` is never 70, and the data never names a class. Your class stays yours — a
 `Data.define` or a plain class with `attr_accessor`s, typed by `constrain` lines or by your RBS
-signatures. TOML, JSON and YAML parsing stays with their own gems; Confect owns the mapping, the
-checking, and optionally where an app's config and state files live.
+signatures. Reading and writing TOML, JSON or YAML, and finding the file, stay with the app;
+Typemap owns the mapping and the checking, and does that one thing well.
 
 ## Promises
 
-- **A file goes in, a checked object of your own class comes out.** Why Confect exists: Ruby has no typed config loader, only Hash-based ones and schema libraries that bring their own class shapes.
+- **A Hash goes in, a checked object of your own class comes out.** Why Typemap exists: Ruby has no typed hash-object mapper, only Hash-based config loaders and schema libraries that bring their own class shapes.
+- **One thing: the mapping.** Finding config files, file formats, env-var overrides and the platforms' conventions stay the app's; a README example shows the simple Linux case, nothing more.
 - **Strict, never coerced.** A value of the wrong type raises with its path; nothing is converted quietly.
 - **The file never names a class.** A rogue file cannot instantiate an arbitrary constant.
-- **Your class stays yours.** Confect defines no class and no accessor; a `Data` class or a plain accessor class works as written.
-- **No runtime dependencies.** The format gems and `rbs` are the app's, required only when used.
+- **Your class stays yours.** Typemap defines no class and no accessor; a `Data` class or a plain accessor class works as written.
+- **No runtime dependencies.** `rbs` is the app's, required only when its types come from `sig/`.
 
 ## Design docs
 
@@ -33,16 +34,16 @@ Every fact lives in exactly one of these; the others link to it.
 ## Invariants
 
 - **No class is looked up from a string read out of the file.** Classes come from the caller and the class side only; a `const_get` on input is the gadget hole the promise closes.
-- **Nothing under `lib/` requires a format gem or `rbs` at load time.** Each is required where it is first used, so an app pays only for what it reads.
+- **Nothing under `lib/` requires `rbs` at load time.** Only `RBSTypes.new` does, so an app without signatures never needs the gem.
 - **Every type, from either strategy, is built by `TypeBuilder`.** A strategy building its own lets the two subsets drift; a spec feeds both the same strings. See `D_types_declared`.
 - **Loading never changes a default.** The base a load starts from may be a constant the app shares; a shape builds a new object instead.
 - **A class is fully checked the first time the mapper reads it.** A check deferred to a key's first appearance hides the gap until a user sets that key; the flow is in architecture.md.
 
 ## Module map
 
-- `lib/confect.rb` — the `Confect` namespace and its `require_relative`s.
-- `lib/confect/` → `Confect::` — the errors, `Constrain`, and `Mapper`.
-- `lib/confect/mapper/` → `Confect::Mapper::` — the types, the two type strategies and their parser, the two shapes, limits, the per-class plan.
+- `lib/typemap.rb` — the `Typemap` namespace and its `require_relative`s.
+- `lib/typemap/` → `Typemap::` — the errors, `Constrain`, and `Mapper`.
+- `lib/typemap/mapper/` → `Typemap::Mapper::` — the types, the two type strategies and their parser, the two shapes, limits, the per-class plan.
 - `spec/` — rspec; `spec/fixtures/rbs_app/` is an app with its own `lib/` and `sig/` for `RBSTypes`.
 - `design/` — the lazy docs above, the tripwire script and `design/ideas/`.
 

@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-module Confect
+module Typemap
   class Mapper
     # The default type strategy, needing no gem: every property's type comes from
-    # `constrain type:`, parsed by Confect's own {TypeParser}. A property without one raises —
+    # `constrain type:`, parsed by Typemap's own {TypeParser}. A property without one raises —
     # a type is never read off the default (`D_types_declared`).
     class BasicTypes
       # @param klass [Class] the class being read
@@ -14,7 +14,7 @@ module Confect
       def type_for(klass, name, constraint)
         unless constraint&.type
           raise DefinitionError, "no type: give it `constrain :#{name}, type: \"…\"` " \
-                                 "(#{klass} uses Confect::Constrain), or map it with Confect::Mapper::RBSTypes"
+                                 "(#{klass} uses Typemap::Constrain), or map it with Typemap::Mapper::RBSTypes"
         end
 
         TypeBuilder.build(TypeParser.parse(constraint.type), constraint.type_owner.name)

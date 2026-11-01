@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Confect
+module Typemap
   class Mapper
     # Resolves a constant name written in a type — `Integer`, `Size`, `Tuile::Size`, `::Size` —
     # the way Ruby resolves it in the code beside it: a leading `::` is absolute, anything else is

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Confect
+module Typemap
   class Mapper
     # `constrain`'s `in:` and `format:` for one property, checked after its type. A `nil` value
     # (of a `T?` type) is never limited.

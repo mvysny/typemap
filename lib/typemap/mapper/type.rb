@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Confect
+module Typemap
   class Mapper
     # The types the mapper checks a value against — the small subset of RBS it supports, whether
     # the type came from `constrain type:` or from `sig/*.rbs` (`D_types_declared`). Each type

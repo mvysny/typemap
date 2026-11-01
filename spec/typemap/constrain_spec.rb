@@ -2,7 +2,7 @@
 
 module ConstrainSpec
   class Base
-    extend Confect::Constrain
+    extend Typemap::Constrain
 
     attr_accessor :a, :b
 
@@ -21,18 +21,18 @@ module ConstrainSpec
   end
 end
 
-RSpec.describe Confect::Constrain do
-  def klass = Class.new { extend Confect::Constrain }
+RSpec.describe Typemap::Constrain do
+  def klass = Class.new { extend Typemap::Constrain }
 
   it "merges several calls for one property" do
-    constraint = Confect::Constrain.constraints_for(ConstrainSpec::Base)[:a]
+    constraint = Typemap::Constrain.constraints_for(ConstrainSpec::Base)[:a]
     assert_equal "Integer", constraint.type
     assert_equal 1..5, constraint.in
     assert_equal ConstrainSpec::Base, constraint.type_owner
   end
 
   it "inherits a superclass's constraints and adds to them" do
-    constraint = Confect::Constrain.constraints_for(ConstrainSpec::Child)[:b]
+    constraint = Typemap::Constrain.constraints_for(ConstrainSpec::Child)[:b]
     assert_equal "String", constraint.type
     assert_equal(/x/, constraint.format)
   end

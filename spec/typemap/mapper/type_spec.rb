@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-RSpec.describe Confect::Mapper::Type do
-  let(:mapper) { Confect::Mapper.new }
+RSpec.describe Typemap::Mapper::Type do
+  let(:mapper) { Typemap::Mapper.new }
 
   def load_value(type, value, default: nil, **limits)
     klass = Holder.of(type, default, **limits)
@@ -9,7 +9,7 @@ RSpec.describe Confect::Mapper::Type do
   end
 
   def error_for(type, value, default: nil, **limits)
-    assert_raises(Confect::DataError) { load_value(type, value, default: default, **limits) }.message
+    assert_raises(Typemap::DataError) { load_value(type, value, default: default, **limits) }.message
   end
 
   describe "Integer" do

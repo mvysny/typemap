@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Confect
+module Typemap
   class Mapper
     # The shape of an accessor class — a mutable class built by a bare `new` and then its
     # setters. Its properties are its public reader + writer pairs (`D_accessor_properties`):

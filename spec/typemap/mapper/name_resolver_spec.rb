@@ -10,8 +10,8 @@ module NameResolverSpec
   end
 end
 
-RSpec.describe Confect::Mapper::NameResolver do
-  def resolve(name, namespace) = Confect::Mapper::NameResolver.resolve(name, namespace)
+RSpec.describe Typemap::Mapper::NameResolver do
+  def resolve(name, namespace) = Typemap::Mapper::NameResolver.resolve(name, namespace)
 
   it "finds a relative name in the innermost scope first" do
     assert_same NameResolverSpec::Inner::Size, resolve("Size", "NameResolverSpec::Inner::Deep")
@@ -34,11 +34,11 @@ RSpec.describe Confect::Mapper::NameResolver do
   end
 
   it "searches scopes, not ancestors" do
-    assert_raises(Confect::DefinitionError) { resolve("Comparable::Size", nil) }
+    assert_raises(Typemap::DefinitionError) { resolve("Comparable::Size", nil) }
   end
 
   it "raises on an unknown name" do
-    error = assert_raises(Confect::DefinitionError) { resolve("Nope", "NameResolverSpec") }
+    error = assert_raises(Typemap::DefinitionError) { resolve("Nope", "NameResolverSpec") }
     assert_equal "unknown constant Nope", error.message
   end
 end

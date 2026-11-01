@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Confect
+module Typemap
   class Mapper
     # One mappable property: its name, its {Type} and its {Limits}.
     #

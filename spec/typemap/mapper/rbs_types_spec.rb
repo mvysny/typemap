@@ -2,8 +2,8 @@
 
 require_relative "../../fixtures/rbs_app/lib/rbs_app"
 
-RSpec.describe Confect::Mapper::RBSTypes do
-  let(:mapper) { Confect::Mapper.new(types: Confect::Mapper::RBSTypes.new) }
+RSpec.describe Typemap::Mapper::RBSTypes do
+  let(:mapper) { Typemap::Mapper.new(types: Typemap::Mapper::RBSTypes.new) }
 
   it "reads types from the sig/ beside the class's own source" do
     state = mapper.load(RbsApp::State, { "log_pane_visible" => false,
@@ -15,16 +15,16 @@ RSpec.describe Confect::Mapper::RBSTypes do
 
   it "resolves a relative name from the declaring namespace" do
     type = mapper.plan_for(RbsApp::Ballooning).properties.find { |property| property.name == :floor }.type
-    assert_equal Confect::Mapper::Type::ClassRef.new(klass: RbsApp::Size), type
+    assert_equal Typemap::Mapper::Type::ClassRef.new(klass: RbsApp::Size), type
   end
 
   it "keeps constrain's limits on a type from the signature" do
-    error = assert_raises(Confect::DataError) { mapper.load(RbsApp::Ballooning, { "raise_at_percent" => 0 }) }
+    error = assert_raises(Typemap::DataError) { mapper.load(RbsApp::Ballooning, { "raise_at_percent" => 0 }) }
     assert_equal "raise_at_percent: 0 is not in 1..100", error.message
   end
 
   it "rejects a value the signature's type rejects" do
-    error = assert_raises(Confect::DataError) { mapper.load(RbsApp::Ballooning, { "mode" => "loud" }) }
+    error = assert_raises(Typemap::DataError) { mapper.load(RbsApp::Ballooning, { "mode" => "loud" }) }
     assert_equal 'mode: expected "short" | "verbose", got "loud"', error.message
   end
 
@@ -33,33 +33,33 @@ RSpec.describe Confect::Mapper::RBSTypes do
   end
 
   it "raises on a type declared both in the signature and by constrain" do
-    error = assert_raises(Confect::DefinitionError) { mapper.load(RbsApp::Twice, {}) }
+    error = assert_raises(Typemap::DefinitionError) { mapper.load(RbsApp::Twice, {}) }
     assert_match(%r{RbsApp::Twice#a: type declared twice: in .*sig/rbs_app\.rbs:\d+ and by `constrain type:`},
                  error.message)
   end
 
   it "raises on a property neither gives a type" do
-    error = assert_raises(Confect::DefinitionError) { mapper.load(RbsApp::Unsigned, {}) }
+    error = assert_raises(Typemap::DefinitionError) { mapper.load(RbsApp::Unsigned, {}) }
     assert_match(/RbsApp::Unsigned#a: no type: RbsApp::Unsigned#a has no reader in .*rbs_app\.rbs/, error.message)
   end
 
   it "reads the signature files it is handed instead" do
     sig = File.expand_path("../../fixtures/rbs_app/sig", __dir__)
-    explicit = Confect::Mapper.new(types: Confect::Mapper::RBSTypes.new(sig: [sig]))
+    explicit = Typemap::Mapper.new(types: Typemap::Mapper::RBSTypes.new(sig: [sig]))
     refute explicit.load(RbsApp::State, { "log_pane_visible" => false }).log_pane_visible
   end
 
   it "raises for a class with no sig/ above its source" do
-    error = assert_raises(Confect::DefinitionError) { mapper.load(DataClassSpec::Ballooning, {}) }
+    error = assert_raises(Typemap::DefinitionError) { mapper.load(DataClassSpec::Ballooning, {}) }
     assert_match(%r{no sig/ directory above}, error.message)
   end
 end
 
-# Both strategies must accept exactly the same types: the same string, through Confect's own
+# Both strategies must accept exactly the same types: the same string, through Typemap's own
 # parser and through the rbs gem's, builds the same type — or fails the same way.
-RSpec.describe Confect::Mapper::TypeParser, "against the rbs gem's parser" do
-  rbs = Confect::Mapper::RBSTypes.new(sig: [])
-  build = ->(tree) { Confect::Mapper::TypeBuilder.build(tree, "RbsApp") }
+RSpec.describe Typemap::Mapper::TypeParser, "against the rbs gem's parser" do
+  rbs = Typemap::Mapper::RBSTypes.new(sig: [])
+  build = ->(tree) { Typemap::Mapper::TypeBuilder.build(tree, "RbsApp") }
 
   [
     "Integer", "Float", "String", "bool", "Integer?", "Array[String]", "::Array[Integer?]",
@@ -67,14 +67,14 @@ RSpec.describe Confect::Mapper::TypeParser, "against the rbs gem's parser" do
     "Size", "RbsApp::Size", "Array[Size]?", "true | false"
   ].each do |source|
     it "builds #{source} the same" do
-      assert_equal build.call(rbs.parse_type(source)), build.call(Confect::Mapper::TypeParser.parse(source))
+      assert_equal build.call(rbs.parse_type(source)), build.call(Typemap::Mapper::TypeParser.parse(source))
     end
   end
 
   ["Set[String]", "Hash[Integer, String]", "Integer | String", "nil", "untyped"].each do |source|
     it "rejects #{source} in both" do
-      assert_raises(Confect::DefinitionError) { build.call(rbs.parse_type(source)) }
-      assert_raises(Confect::DefinitionError) { build.call(Confect::Mapper::TypeParser.parse(source)) }
+      assert_raises(Typemap::DefinitionError) { build.call(rbs.parse_type(source)) }
+      assert_raises(Typemap::DefinitionError) { build.call(Typemap::Mapper::TypeParser.parse(source)) }
     end
   end
 end

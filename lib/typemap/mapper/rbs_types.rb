@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Confect
+module Typemap
   class Mapper
     # The type strategy for a project that keeps `sig/*.rbs` — written by hand, or by sord from
     # YARD tags. A property's type is its reader's in the signature files: an `attr_reader` /
@@ -8,7 +8,7 @@ module Confect
     # `constrain type:` is still allowed for a property the signatures do not cover, but never
     # for one they do — a type declared twice drifts (`D_types_declared`).
     #
-    # Needs the `rbs` gem, the app's dependency and never Confect's; only its parser is used,
+    # Needs the `rbs` gem, the app's dependency and never Typemap's; only its parser is used,
     # not its type environment (`R_rbs_parser`).
     class RBSTypes
       # @param sig [Array<String>, nil] the `.rbs` files, or directories searched for them; `nil`
@@ -19,7 +19,7 @@ module Confect
           require "rbs"
         rescue ::LoadError => e
           raise ::LoadError,
-                "Confect::Mapper::RBSTypes needs the rbs gem: add `gem \"rbs\"` to the Gemfile (#{e.message})"
+                "Typemap::Mapper::RBSTypes needs the rbs gem: add `gem \"rbs\"` to the Gemfile (#{e.message})"
         end
         @sig = sig&.then { |paths| expand(paths) }
         @indexes = {}

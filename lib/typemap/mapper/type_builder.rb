@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Confect
+module Typemap
   class Mapper
     # Turns a type syntax tree (see {TypeParser}) into the {Type} the mapper checks, resolving
     # constant names from the declaring namespace. Both type strategies end here, so they accept

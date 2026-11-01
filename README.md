@@ -1,25 +1,21 @@
-# Confect
+# Typemap
 
-Confect loads a config file into a Ruby class you already wrote, and checks every value on the
-way: `"70"` is never 70, and the file never names a class. Your class stays yours — a
+Typemap maps a Hash onto a Ruby class you already wrote, and back, checking every value on the
+way: `"70"` is never 70, and the data never names a class. Your class stays yours — a
 `Data.define` or a plain class with `attr_accessor`s, typed by `constrain` lines or by your RBS
-signatures. TOML, JSON and YAML parsing stays with their own gems; Confect owns the mapping, the
-checking, and optionally where an app's config and state files live.
+signatures. Reading and writing TOML, JSON or YAML, and finding the file, stay with the app;
+Typemap owns the mapping and the checking, and does that one thing well.
 
-To confect is to prepare something from raw ingredients: a raw file in, a checked Ruby object
-served out.
-
-Pre-release: the mapper below works; the layer that finds an app's files in `~/.config` and
-`/etc` is still [an idea](design/ideas/locations.md). Requires Ruby 3.3+; no runtime dependencies.
+Pre-release. Requires Ruby 3.3+; no runtime dependencies.
 
 ## A quick look
 
 ```ruby
-require "confect"
+require "typemap"
 require "tomlrb"
 
 class Ballooning < Data.define(:raise_at_percent, :shrink_at_percent, :pinned_vms)
-  extend Confect::Constrain
+  extend Typemap::Constrain
 
   constrain :raise_at_percent, :shrink_at_percent, type: "Integer", in: 1..100
   constrain :pinned_vms, type: "Array[String]"
@@ -31,11 +27,11 @@ class Ballooning < Data.define(:raise_at_percent, :shrink_at_percent, :pinned_vm
   end
 end
 
-mapper = Confect::Mapper.new
+mapper = Typemap::Mapper.new
 ballooning = mapper.load(Ballooning, Tomlrb.load_file("ballooning.toml"))
 ```
 
-A file that does not fit raises `Confect::DataError`, with the path of the offending value:
+A file that does not fit raises `Typemap::DataError`, with the path of the offending value:
 
 ```
 raise_at_percent: expected Integer, got "70"
@@ -48,7 +44,7 @@ raise_at_percent must be above shrink_at_percent
 ## Loading and saving
 
 ```ruby
-mapper = Confect::Mapper.new
+mapper = Typemap::Mapper.new
 
 config = mapper.load(Config, Tomlrb.load_file(path))                  # Tomlrb, JSON, YAML.safe_load: any Hash
 state  = mapper.load(State, JSON.load_file(path), unknown: :ignore)   # drop keys a newer version wrote
@@ -61,7 +57,7 @@ File.write(path, JSON.pretty_generate(mapper.dump(state)))            # String k
 - **Keys may be Strings or Symbols** (`JSON.load_file(path, symbolize_names: true)` works).
 - **`dump` writes properties in declaration order** and checks every value against its type, so
   a bug that put a wrong value in an object is caught before it reaches the file.
-- **The first problem raises.** Confect does not collect every error.
+- **The first problem raises.** Typemap does not collect every error.
 - **A mapper is safe to share between threads**; it works out each class once and remembers it.
 
 ## Your class
@@ -76,7 +72,7 @@ Two shapes of class map, and either must build with a bare `new` — that instan
 
 ```ruby
 class State
-  extend Confect::Constrain
+  extend Typemap::Constrain
 
   attr_accessor :system_pane_visible, :log_pane_visible
   attr_accessor :on_change                  # a listener, not a setting
@@ -93,10 +89,10 @@ end
 ```
 
 An accessor that is not a setting goes `private`, or stays public under `ignore`. Left public, it
-has no type, and Confect raises when it first reads the class — it never serializes it quietly.
+has no type, and Typemap raises when it first reads the class — it never serializes it quietly.
 
-**Validation across properties** goes in the class's own `validate`, which Confect calls after
-building the object, nested objects first; whatever it raises becomes a `Confect::DataError`
+**Validation across properties** goes in the class's own `validate`, which Typemap calls after
+building the object, nested objects first; whatever it raises becomes a `Typemap::DataError`
 carrying the object's path.
 
 ## Types
@@ -134,7 +130,7 @@ read the next line as the range's end.
 
 ## Problems in the class itself
 
-A class Confect cannot map raises `Confect::DefinitionError` the first time the mapper reads it —
+A class Typemap cannot map raises `Typemap::DefinitionError` the first time the mapper reads it —
 before it looks at any file, so a gap never waits for a user to set that key:
 
 ```
@@ -146,14 +142,14 @@ Config: constrain names prot, not a property
 Config: must build with a bare new, its default instance (missing keyword: :port)
 ```
 
-Both `Confect::DataError` and `Confect::DefinitionError` are `Confect::Error`s.
+Both `Typemap::DataError` and `Typemap::DefinitionError` are `Typemap::Error`s.
 
 ## Types from RBS signatures
 
 A project that keeps `sig/*.rbs` can take its types from there instead of `constrain type:`:
 
 ```ruby
-mapper = Confect::Mapper.new(types: Confect::Mapper::RBSTypes.new)
+mapper = Typemap::Mapper.new(types: Typemap::Mapper::RBSTypes.new)
 ```
 
 - A property's type is its reader's: `attr_reader` / `attr_accessor name: T`, or
@@ -162,7 +158,7 @@ mapper = Confect::Mapper.new(types: Confect::Mapper::RBSTypes.new)
   `RBSTypes.new(sig: ["sig/app.rbs"])` names the files instead.
 - `constrain` still gives limits; a `constrain type:` for a property the signatures already type
   raises, since a type declared twice drifts.
-- It needs the `rbs` gem — add `gem "rbs"` to your Gemfile. Confect itself never depends on it.
+- It needs the `rbs` gem — add `gem "rbs"` to your Gemfile. Typemap itself never depends on it.
 
 [sord](https://github.com/AaronC81/sord) writes `sig/*.rbs` from YARD tags
 (`sord gen sig/app.rbs --rbs`). A data class is typed with YARD's `@!attribute` directive, in the
@@ -174,9 +170,60 @@ mapper = Confect::Mapper.new(types: Confect::Mapper::RBSTypes.new)
 class Ballooning < Data.define(:raise_at_percent)
 ```
 
+## Example: config and state files on Linux
+
+Typemap does not find files; your app does. The simple Linux case, by the
+[XDG Base Directory spec](https://specifications.freedesktop.org/basedir-spec/latest/) —
+config read from the first file found, state written whole and renamed into place:
+
+```ruby
+require "json"
+require "fileutils"
+require "tomlrb"
+require "typemap"
+
+module Paths
+  # An XDG variable, or its default when unset, empty or relative (the spec calls that invalid).
+  def self.xdg(var, default) = ENV[var].to_s.start_with?("/") ? ENV[var] : File.join(Dir.home, default)
+
+  def self.config_file(app)
+    dirs = [xdg("XDG_CONFIG_HOME", ".config"), *ENV.fetch("XDG_CONFIG_DIRS", "/etc/xdg").split(":"), "/etc"]
+    dirs.map { |dir| File.join(dir, app, "config.toml") }.find { |file| File.exist?(file) }
+  end
+
+  def self.state_file(app) = File.join(xdg("XDG_STATE_HOME", ".local/state"), app, "state.json")
+end
+
+MAPPER = Typemap::Mapper.new
+
+def load_config
+  file = Paths.config_file("myapp")
+  return Config.new unless file
+
+  MAPPER.load(Config, Tomlrb.load_file(file))
+rescue Typemap::DataError => e
+  abort "#{file}: #{e.message}"   # ~/.config/myapp/config.toml: port: expected Integer, got "80"
+end
+
+def load_state
+  file = Paths.state_file("myapp")
+  File.exist?(file) ? MAPPER.load(State, JSON.load_file(file), unknown: :ignore) : State.new
+end
+
+def save_state(state)
+  file = Paths.state_file("myapp")
+  FileUtils.mkdir_p(File.dirname(file))
+  File.write("#{file}.tmp", JSON.pretty_generate(MAPPER.dump(state)))
+  File.rename("#{file}.tmp", file)   # a crash mid-write never leaves a truncated file
+end
+```
+
+That is as far as Typemap goes. Merging several config files, `config.d/` fragments, env-var
+overrides, macOS and Windows locations are the app's call, or another gem's.
+
 ## Design
 
-Why Confect is shaped this way — and why not dry-struct, ActiveModel or `T::Struct` — is in
+Why Typemap is shaped this way — and why not dry-struct, ActiveModel or `T::Struct` — is in
 [design/decisions.md](design/decisions.md).
 
 ## License

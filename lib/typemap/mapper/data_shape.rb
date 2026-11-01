@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Confect
+module Typemap
   class Mapper
     # The shape of a data class (`Data.define`): its properties are its `members`, in order, and
     # an instance is built in one `new(**values)`.

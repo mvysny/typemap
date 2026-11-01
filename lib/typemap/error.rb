@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-module Confect
-  # The root of Confect's own errors; rescue it to catch both kinds below.
+module Typemap
+  # The root of Typemap's own errors; rescue it to catch both kinds below.
   class Error < StandardError
   end
 

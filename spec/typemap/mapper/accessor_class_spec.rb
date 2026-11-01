@@ -2,7 +2,7 @@
 
 module AccessorClassSpec
   Window = Data.define(:width, :height) do
-    extend Confect::Constrain
+    extend Typemap::Constrain
 
     constrain :width, :height, type: "Integer", in: (1..)
 
@@ -10,7 +10,7 @@ module AccessorClassSpec
   end
 
   class State
-    extend Confect::Constrain
+    extend Typemap::Constrain
 
     attr_accessor :system_pane_visible, :log_pane_visible
     attr_accessor :window
@@ -42,7 +42,7 @@ module AccessorClassSpec
   DEFAULT_WINDOW = Window.new(width: 100, height: 40)
 
   class Shared
-    extend Confect::Constrain
+    extend Typemap::Constrain
 
     attr_accessor :window
 
@@ -54,8 +54,8 @@ module AccessorClassSpec
   end
 end
 
-RSpec.describe Confect::Mapper, "with an accessor class" do
-  let(:mapper) { Confect::Mapper.new }
+RSpec.describe Typemap::Mapper, "with an accessor class" do
+  let(:mapper) { Typemap::Mapper.new }
 
   it "maps the public reader + writer pairs, in declaration order, without the ignored one" do
     assert_equal %i[system_pane_visible log_pane_visible window],
@@ -77,16 +77,16 @@ RSpec.describe Confect::Mapper, "with an accessor class" do
   end
 
   it "rejects a key for a reader with no writer as unknown" do
-    error = assert_raises(Confect::DataError) { mapper.load(AccessorClassSpec::State, { "path" => "/etc" }) }
+    error = assert_raises(Typemap::DataError) { mapper.load(AccessorClassSpec::State, { "path" => "/etc" }) }
     assert_equal "path", error.path
   end
 
   it "rejects a key for the ignored accessor as unknown" do
-    assert_raises(Confect::DataError) { mapper.load(AccessorClassSpec::State, { "on_change" => 1 }) }
+    assert_raises(Typemap::DataError) { mapper.load(AccessorClassSpec::State, { "on_change" => 1 }) }
   end
 
   it "rejects a non-boolean" do
-    error = assert_raises(Confect::DataError) { mapper.load(AccessorClassSpec::State, { "log_pane_visible" => "no" }) }
+    error = assert_raises(Typemap::DataError) { mapper.load(AccessorClassSpec::State, { "log_pane_visible" => "no" }) }
     assert_equal 'log_pane_visible: expected bool, got "no"', error.message
   end
 
@@ -98,12 +98,12 @@ RSpec.describe Confect::Mapper, "with an accessor class" do
   end
 end
 
-RSpec.describe Confect::Mapper::AccessorShape do
+RSpec.describe Typemap::Mapper::AccessorShape do
   it "orders accessors declared on one line as they stand in it" do
     klass = Class.new do
       attr_accessor :zeta, :alpha
       attr_accessor :middle
     end
-    assert_equal %i[zeta alpha middle], Confect::Mapper::AccessorShape.properties(klass)
+    assert_equal %i[zeta alpha middle], Typemap::Mapper::AccessorShape.properties(klass)
   end
 end

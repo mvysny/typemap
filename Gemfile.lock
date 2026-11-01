@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    confect (0.1.0)
+    typemap (0.1.0)
 
 GEM
   remote: https://rubygems.org/
@@ -82,7 +82,6 @@ PLATFORMS
   x86_64-linux-gnu
 
 DEPENDENCIES
-  confect!
   irb
   minitest (~> 6.0)
   rake (~> 13.2)
@@ -91,12 +90,12 @@ DEPENDENCIES
   rspec-core (~> 3.13)
   rubocop (~> 1.21)
   simplecov (~> 0.22)
+  typemap!
   yard (~> 0.9.37)
 
 CHECKSUMS
   ast (2.4.3)
   bundler (4.0.19) sha256=b48056e4c77fb3853cc47775b5447ede44aaa4f53c32f168014ab4fe86587d47
-  confect (0.1.0)
   docile (1.4.1)
   drb (2.2.3)
   erb (6.0.7)
@@ -129,6 +128,7 @@ CHECKSUMS
   simplecov-html (0.13.2)
   simplecov_json_formatter (0.1.4)
   tsort (0.2.0)
+  typemap (0.1.0)
   unicode-display_width (3.3.0)
   unicode-emoji (4.3.0)
   yard (0.9.45)

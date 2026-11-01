@@ -8,7 +8,7 @@ module Holder
   # @return [Class]
   def self.of(type, default, **limits)
     klass = Class.new do
-      extend Confect::Constrain
+      extend Typemap::Constrain
 
       attr_accessor :value
 

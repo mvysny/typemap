@@ -1,4 +1,4 @@
-# Research — the Ruby runtime and the gems Confect reads types from: Ruby 3.3, rbs, sorbet-runtime
+# Research — the Ruby runtime and the gems Typemap reads types from: Ruby 3.3, rbs, sorbet-runtime
 
 What the things we don't own actually do. About *them*, never us: a sentence starting "we chose"
 is a `D_`. `## R_<slug> — <title>`, one claim per bullet, one provenance marker per claim —

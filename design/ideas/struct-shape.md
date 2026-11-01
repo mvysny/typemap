@@ -1,6 +1,6 @@
 # `Struct` as a third shape
 
-Confect maps two shapes (`design/architecture.md`, `D_accessor_properties`): a data class (`Data.define`,
+Typemap maps two shapes (`design/architecture.md`, `D_accessor_properties`): a data class (`Data.define`,
 built with `new(**values)`) and an accessor class (public reader + writer pairs, built with a
 bare `new` and then setters). A `Struct` is neither quite, and an app may well use one for its
 config or state.
@@ -25,14 +25,14 @@ accessor class (`State`). Today a `Struct` already maps — it is not a `Data`, 
 accessor class — but its members have no source line, so it dumps them by name: `Struct.new(:y,
 :x)` dumps `x` first (verified 2026-11-01). Shapes are internal, with no option to add one;
 adding `Struct` is a `StructShape` beside `DataShape` and `AccessorShape` in
-`lib/confect/mapper/`, picked by `klass < Struct` in `Plan.build`, its order from `members`.
+`lib/typemap/mapper/`, picked by `klass < Struct` in `Plan.build`, its order from `members`.
 
 ## Open questions
 
 - `Q_struct_defaults` — a bare `Struct#new` sets every member to `nil`, so with non-nil types
   every default fails the type check (`Integer` with default `nil`). A config `Struct` must then
   override `initialize` with real defaults, or type every member `T?`. Is the override the
-  documented way, or does Confect read defaults some other way? The override keeps the rule
+  documented way, or does Typemap read defaults some other way? The override keeps the rule
   "the bare `new` is the default instance" intact.
 - `Q_struct_order` — `members` order is declaration order; is `to_h` the dump, or the shape's
   own walk through the getters? The walk keeps nested objects and `ignore` working the same as

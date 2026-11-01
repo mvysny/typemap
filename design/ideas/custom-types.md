@@ -17,7 +17,7 @@ Nothing needs it while settings carry their unit in the key — `min_actual_gib 
 - **A protocol class**: any class with `.load(raw)` and `#dump` is a custom type; the mapper
   calls `Size.load("8 GiB")`, which raises on garbage, and `size.dump` → `"8 GiB"`. No
   registration; the class says it.
-- **A registry**: `Confect::Mapper.type("Size") { |raw| … }` that type names resolve through — for
+- **A registry**: `Typemap::Mapper.type("Size") { |raw| … }` that type names resolve through — for
   a class the app does not own and cannot add `.load` to.
 
 ## Open questions

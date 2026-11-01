@@ -8,7 +8,7 @@ module DefinitionErrorSpec
   end
 
   class NeedsArguments < Data.define(:a)
-    extend Confect::Constrain
+    extend Typemap::Constrain
 
     constrain :a, type: "Integer"
   end
@@ -18,7 +18,7 @@ module DefinitionErrorSpec
   end
 
   class StrayConstrain
-    extend Confect::Constrain
+    extend Typemap::Constrain
 
     attr_accessor :a
 
@@ -29,7 +29,7 @@ module DefinitionErrorSpec
   end
 
   class StrayIgnore
-    extend Confect::Constrain
+    extend Typemap::Constrain
 
     attr_accessor :a
 
@@ -40,7 +40,7 @@ module DefinitionErrorSpec
   end
 
   class Unsupported
-    extend Confect::Constrain
+    extend Typemap::Constrain
 
     attr_accessor :a
 
@@ -50,7 +50,7 @@ module DefinitionErrorSpec
   end
 
   class Nested
-    extend Confect::Constrain
+    extend Typemap::Constrain
 
     attr_accessor :inner
 
@@ -61,7 +61,7 @@ module DefinitionErrorSpec
 
   # A class nested in itself: planning must terminate.
   class Tree
-    extend Confect::Constrain
+    extend Typemap::Constrain
 
     attr_accessor :children
 
@@ -71,11 +71,11 @@ module DefinitionErrorSpec
   end
 end
 
-RSpec.describe Confect::Mapper, "reading a class it cannot map" do
-  let(:mapper) { Confect::Mapper.new }
+RSpec.describe Typemap::Mapper, "reading a class it cannot map" do
+  let(:mapper) { Typemap::Mapper.new }
 
   def error_for(klass)
-    assert_raises(Confect::DefinitionError) { mapper.load(klass, {}) }.message
+    assert_raises(Typemap::DefinitionError) { mapper.load(klass, {}) }.message
   end
 
   def holder(type, default, **limits) = Holder.of(type, default, **limits)
@@ -125,7 +125,7 @@ RSpec.describe Confect::Mapper, "reading a class it cannot map" do
   end
 
   it "raises before reading the file at all" do
-    assert_raises(Confect::DefinitionError) { mapper.load(DefinitionErrorSpec::Untyped, { "a" => 1 }) }
+    assert_raises(Typemap::DefinitionError) { mapper.load(DefinitionErrorSpec::Untyped, { "a" => 1 }) }
   end
 
   it "plans a class nested in itself" do

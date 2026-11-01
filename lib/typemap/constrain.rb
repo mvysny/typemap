@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-module Confect
-  # The class-side annotations the mapper reads: `extend Confect::Constrain`, then
+module Typemap
+  # The class-side annotations the mapper reads: `extend Typemap::Constrain`, then
   #
   #     constrain :raise_at_percent, :shrink_at_percent, type: "Integer", in: 1..100
   #     constrain :pinned_vms, type: "Array[String]"
@@ -40,7 +40,7 @@ module Confect
       given = { type: type, in: allowed, format: format }.compact
       given[:type_owner] = self if type
       names.each do |name|
-        entry = confect_constraints[name] ||= {}
+        entry = typemap_constraints[name] ||= {}
         given.each do |key, value|
           raise ArgumentError, "constrain :#{name}: #{key}: given twice" if entry.key?(key)
 
@@ -61,19 +61,19 @@ module Confect
       names.each do |name|
         raise ArgumentError, "ignore: #{name.inspect} is not a Symbol" unless name.is_a?(Symbol)
       end
-      confect_ignored.concat(names - confect_ignored)
+      typemap_ignored.concat(names - typemap_ignored)
     end
 
     # @api private
     # @return [Hash{Symbol => Hash}] what `constrain` recorded on this class itself
-    def confect_constraints
-      @confect_constraints ||= {}
+    def typemap_constraints
+      @typemap_constraints ||= {}
     end
 
     # @api private
     # @return [Array<Symbol>] what `ignore` recorded on this class itself
-    def confect_ignored
-      @confect_ignored ||= []
+    def typemap_ignored
+      @typemap_ignored ||= []
     end
 
     # The constraints of `klass` and its ancestors, a subclass's option winning over its
@@ -86,7 +86,7 @@ module Confect
       klass.ancestors.reverse_each do |mod|
         next unless mod.singleton_class.include?(Constrain)
 
-        mod.confect_constraints.each { |name, options| (merged[name] ||= {}).merge!(options) }
+        mod.typemap_constraints.each { |name, options| (merged[name] ||= {}).merge!(options) }
       end
       merged.transform_values do |options|
         Constraint.new(type: options[:type], type_owner: options[:type_owner], in: options[:in],
@@ -97,7 +97,7 @@ module Confect
     # @param klass [Class]
     # @return [Array<Symbol>] the names `klass` and its ancestors `ignore`
     def self.ignored_for(klass)
-      klass.ancestors.select { |mod| mod.singleton_class.include?(Constrain) }.flat_map(&:confect_ignored).uniq
+      klass.ancestors.select { |mod| mod.singleton_class.include?(Constrain) }.flat_map(&:typemap_ignored).uniq
     end
 
     private

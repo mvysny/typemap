@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Confect
+module Typemap
   class Mapper
     # Parses a type string in the subset of RBS the mapper supports into a syntax tree for
     # {TypeBuilder}; `BasicTypes` uses it so the `rbs` gem stays optional. The grammar:
