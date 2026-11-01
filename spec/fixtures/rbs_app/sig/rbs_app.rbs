@@ -1,0 +1,25 @@
+module RbsApp
+  class Size < Data
+    attr_reader bytes: Integer
+  end
+
+  class Ballooning < Data
+    attr_reader raise_at_percent: Integer
+
+    def mode: () -> ("short" | "verbose")
+
+    attr_reader pinned_vms: ::Array[String]
+
+    attr_reader floor: Size
+  end
+
+  class State
+    attr_accessor log_pane_visible: bool
+
+    attr_accessor ballooning: Ballooning
+  end
+
+  class Twice
+    attr_accessor a: Integer
+  end
+end

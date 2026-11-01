@@ -9,6 +9,7 @@ if ENV["COVERAGE"] == "true"
 end
 
 require "confect"
+require_relative "support/holder"
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure

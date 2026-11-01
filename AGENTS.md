@@ -22,6 +22,7 @@ checking, and optionally where an app's config and state files live.
 |---|---|---|
 | `README.md` | the pitch, install, the guide a user reads | — |
 | `AGENTS.md` (this) | promises, invariants, the module map, conventions, commands | every turn |
+| `design/architecture.md` | how the pieces compose — strategies, shapes, plans, the load and dump flows; normative | lazy |
 | `design/decisions.md` | why this and not that — `D_` entries, FAQ-shaped | lazy |
 | `design/research.md` | what Ruby, rbs and sorbet-runtime actually do — `R_` entries, each claim with provenance | lazy |
 | `design/ideas/*.md` | one scratchpad per idea in flight; deleted once its nuggets land in a row above | lazy |
@@ -33,12 +34,16 @@ Every fact lives in exactly one of these; the others link to it.
 
 - **No class is looked up from a string read out of the file.** Classes come from the caller and the class side only; a `const_get` on input is the gadget hole the promise closes.
 - **Nothing under `lib/` requires a format gem or `rbs` at load time.** Each is required where it is first used, so an app pays only for what it reads.
+- **Every type, from either strategy, is built by `TypeBuilder`.** A strategy building its own lets the two subsets drift; a spec feeds both the same strings. See `D_types_declared`.
+- **Loading never changes a default.** The base a load starts from may be a constant the app shares; a shape builds a new object instead.
+- **A class is fully checked the first time the mapper reads it.** A check deferred to a key's first appearance hides the gap until a user sets that key; the flow is in architecture.md.
 
 ## Module map
 
 - `lib/confect.rb` — the `Confect` namespace and its `require_relative`s.
-- `lib/confect/` → `Confect::` — the mapper, its type and shape strategies, `Constrain`.
-- `spec/` — rspec, one spec file per class.
+- `lib/confect/` → `Confect::` — the errors, `Constrain`, and `Mapper`.
+- `lib/confect/mapper/` → `Confect::Mapper::` — the types, the two type strategies and their parser, the two shapes, limits, the per-class plan.
+- `spec/` — rspec; `spec/fixtures/rbs_app/` is an app with its own `lib/` and `sig/` for `RBSTypes`.
 - `design/` — the lazy docs above, the tripwire script and `design/ideas/`.
 
 ## Conventions

@@ -1,6 +1,6 @@
 # JSON Schema as a third type strategy
 
-Not the first thing built: Confect starts with `constrain` and RBS (`mapper.md`). A JSON Schema
+Not the first thing built: Confect has `BasicTypes` (`constrain`) and `RBSTypes` (`sig/`). A JSON Schema
 may come later as another way to give the same types and limits, through **json_schemer**.
 
 ## The shape of it

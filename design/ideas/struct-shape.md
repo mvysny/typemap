@@ -1,6 +1,6 @@
 # `Struct` as a third shape
 
-Confect maps two shapes (`mapper.md`, `D_accessor_properties`): a data class (`Data.define`,
+Confect maps two shapes (`design/architecture.md`, `D_accessor_properties`): a data class (`Data.define`,
 built with `new(**values)`) and an accessor class (public reader + writer pairs, built with a
 bare `new` and then setters). A `Struct` is neither quite, and an app may well use one for its
 config or state.
@@ -21,8 +21,11 @@ built with a bare `new` and the setters — the accessor shape with `members` as
 ## Why it is not built yet
 
 No app uses a `Struct` for its settings: virtui's are a data class (`Ballooning`) and an
-accessor class (`State`). Shapes are internal, with no option to add one (`mapper.md`); adding
-`Struct` is a new class beside the two, picked by `klass < Struct`.
+accessor class (`State`). Today a `Struct` already maps — it is not a `Data`, so it is read as an
+accessor class — but its members have no source line, so it dumps them by name: `Struct.new(:y,
+:x)` dumps `x` first (verified 2026-11-01). Shapes are internal, with no option to add one;
+adding `Struct` is a `StructShape` beside `DataShape` and `AccessorShape` in
+`lib/confect/mapper/`, picked by `klass < Struct` in `Plan.build`, its order from `members`.
 
 ## Open questions
 

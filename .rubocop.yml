@@ -22,3 +22,8 @@ Style/StringLiterals:
 
 Style/StringLiteralsInInterpolation:
   EnforcedStyle: double_quotes
+
+# Accessor order is dump order (an accessor class dumps in declaration order), so regrouping
+# attr_accessor lines would change behaviour, not style.
+Style/AccessorGrouping:
+  Enabled: false
