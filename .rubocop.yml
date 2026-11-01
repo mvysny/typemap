@@ -1,0 +1,24 @@
+AllCops:
+  TargetRubyVersion: 3.3
+  # We don't track upstream cops as they land; opting in is a deliberate act.
+  NewCops: disable
+  SuggestExtensions: false
+  # Merge, or this list *replaces* rubocop's own defaults — which include `vendor/**/*`, where
+  # CI's `bundler-cache: true` installs the bundle.
+  inherit_mode:
+    merge:
+      - Exclude
+  Exclude:
+    # A scratchpad deleted at graduation (AGENTS.md); a probe script beside a note is research
+    # tooling, not gem code.
+    - "design/ideas/**/*"
+
+# Size cops are noise by policy; a class is as long as its job.
+Metrics:
+  Enabled: false
+
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+
+Style/StringLiteralsInInterpolation:
+  EnforcedStyle: double_quotes
