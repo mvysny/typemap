@@ -43,7 +43,9 @@ walk costs nothing at config size.
 
 `plan.rb` checks each default against its type and limits on its own. That becomes conversion's
 type check plus validation steps 1–2 run on the bare `new`, with `required:` skipped (a required
-property's `nil` default is the point). The result is one rulebook instead of two.
+property's `nil` default is the point). The result is one rulebook instead of two. A `Data` class
+with a required keyword has no bare `new` (`required-keys.md`), so its defaults are checked only
+through each load's result.
 
 - `Q_default_validate`: should reading the class also run the class's own `validate` on the
   default? It would catch a default that breaks its own invariant before any file is read, but
