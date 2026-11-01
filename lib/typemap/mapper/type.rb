@@ -7,7 +7,7 @@ module Typemap
     # answers four questions:
     #
     # - `load(value, path, session, base)` — the value as the property holds it, or a
-    #   {DataError}; strict, never coerced;
+    #   {DataError}; strict, never coerced, a whole number between Integer and Float aside;
     # - `dump(value, mapper, path)` — the value as plain Hash/Array/scalar data;
     # - `accepts?(value)` — whether a default fits, checked once when the class is first read;
     # - `limits` — which of `constrain`'s `in:` / `format:` the type can take.
@@ -33,13 +33,20 @@ module Typemap
         path.empty? ? key.to_s : "#{path}.#{key}"
       end
 
-      # `Integer`, `Float` or `String`: the value must be an instance, as it is. An Integer is not
-      # a Float; `70.0` is not an Integer.
+      # `Integer`, `Float` or `String`: the value must be an instance. On load alone a whole number
+      # crosses between the two numeric classes, exactly or not at all — `5` loads as `5.0`, `5.0`
+      # as `5`, `5.1` raises (`D_whole_numbers`); a default and a dumped value stay strict.
       #
       # @!attribute [r] klass
       #   @return [Class] `Integer`, `Float` or `String`
       Scalar = Data.define(:klass) do
-        def load(value, path, _session, _base) = (value.is_a?(klass) ? value : Type.mismatch(self, value, path))
+        def load(value, path, _session, _base)
+          return value if value.is_a?(klass)
+
+          whole = Type.whole_number(value, klass)
+          whole.nil? ? Type.mismatch(self, value, path) : whole
+        end
+
         def dump(value, _mapper, path) = (value.is_a?(klass) ? value : Type.mismatch(self, value, path))
         def accepts?(value) = value.is_a?(klass)
         def limits = klass == String ? %i[in format] : %i[in]
@@ -154,6 +161,22 @@ module Typemap
         def numeric? = false
         def nested_classes = [klass]
         def to_s = klass.name || klass.inspect
+      end
+
+      # A whole number as the other numeric class, when it converts exactly: `5` as a Float is
+      # `5.0`, `5.0` as an Integer is `5`. Not `5.1`, NaN or infinity as an Integer, nor
+      # `2**53 + 1` as a Float, which would round.
+      #
+      # @param value [Object]
+      # @param klass [Class] the class the property declares
+      # @return [Integer, Float, nil] the converted value, or nil when it does not convert exactly
+      def self.whole_number(value, klass)
+        if klass == Float && value.is_a?(Integer)
+          float = value.to_f
+          float if float.finite? && float.to_i == value
+        elsif klass == Integer && value.is_a?(Float)
+          value.to_i if value.finite? && value.to_i == value
+        end
       end
 
       # A table's keys as Strings, a Symbol key taken as its String.

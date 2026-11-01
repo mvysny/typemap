@@ -23,7 +23,8 @@ module Typemap
   #
   # The class is a data class (`Data.define`) or an accessor class (public reader + writer
   # pairs); either must build with a bare `new`, which is its default instance. Types are strict:
-  # `"70"` is not an Integer and `70.0` is not 70. The first problem raises — a {DataError} with
+  # `"70"` is not an Integer and `70.5` is not 70, though a whole `70.0` loads as 70 and `1` as
+  # a Float `1.0`. The first problem raises — a {DataError} with
   # the offending value's path when the file does not fit, a {DefinitionError} when the class
   # cannot be mapped, the latter as soon as the class is first read. After building an object
   # the mapper calls its `validate`, if it has one, nested objects first.

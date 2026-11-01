@@ -102,8 +102,8 @@ The default never supplies one — a default of `65` would otherwise reject `65.
 
 | Type | Takes | Rejects |
 |---|---|---|
-| `Integer` | `70` | `"70"`, `70.0` |
-| `Float` | `0.5` | `1` (an Integer is not a Float) |
+| `Integer` | `70`; `70.0`, loaded as `70` | `"70"`, `70.5` |
+| `Float` | `0.5`; `1`, loaded as `1.0` | `"0.5"` |
 | `String` | `"a"` | `:a` |
 | `bool` | `true`, `false` | `0`, `"yes"` |
 | `T?` | `nil`, or a `T` | |

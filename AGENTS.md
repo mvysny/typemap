@@ -12,7 +12,7 @@ Typemap owns the mapping and the checking, and does that one thing well.
 
 - **A Hash goes in, a checked object of your own class comes out.** Why Typemap exists: Ruby has no typed hash-object mapper, only Hash-based config loaders and schema libraries that bring their own class shapes.
 - **One thing: the mapping.** Finding config files, file formats, env-var overrides and the platforms' conventions stay the app's; a README example shows the simple Linux case, nothing more.
-- **Strict, never coerced.** A value of the wrong type raises with its path; nothing is converted quietly.
+- **Strict, never coerced.** A value of the wrong type raises with its path; nothing is converted quietly, save a whole number crossing exactly between Integer and Float (`D_whole_numbers`).
 - **The file never names a class.** A rogue file cannot instantiate an arbitrary constant.
 - **Your class stays yours.** Typemap defines no class and no accessor; a `Data` class or a plain accessor class works as written.
 - **No runtime dependencies.** `rbs` is the app's, required only when its types come from `sig/`.

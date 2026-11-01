@@ -80,3 +80,16 @@ property would need a line it otherwise does not. An accessor that is not a sett
 Typemap first reads the class. The class must build with a bare `new`, which is its default
 instance, so there are no required keys yet. An immutable plain class has no writers and so no
 properties: immutable means `Data`.
+
+## D_whole_numbers — Why does a Float take `5` and an Integer `5.0`, when nothing else converts?
+
+Strictness serves the person writing the file, and stops where it would surprise them: a Float
+percent takes `70.5`, and must take `100` too. The formats blur the two anyway — JSON has one
+number type; JavaScript writes `5.0` as `5`, Python's `json` writes `float(5)` as `5.0`. The crossing
+is exact or it does not happen: `5.1` is no Integer, nor is NaN, nor `2**53 + 1` a Float, which
+would round. The property then holds its declared class — `5.0`, never `5` — so `ratio / 2`
+does not divide as Integers. Why only on load: a default and a dumped value are the app's own
+Ruby, where `1` for a Float is a slip the class should fix. Why not a literal union: `1 | 2 | 3`
+reads as a pick from a list, where `3.0` is odd rather than a writer's habit — until a real use
+says otherwise. Why not `"70"`: a String is no number;
+parsing it is the coercion **Strict, never coerced** rules out.

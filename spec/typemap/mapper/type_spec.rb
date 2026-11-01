@@ -15,14 +15,35 @@ RSpec.describe Typemap::Mapper::Type do
   describe "Integer" do
     it("takes an Integer") { assert_equal 70, load_value("Integer", 70, default: 1) }
     it("rejects a String") { assert_equal 'value: expected Integer, got "70"', error_for("Integer", "70", default: 1) }
-    it("rejects 70.0") { assert_equal "value: expected Integer, got 70.0", error_for("Integer", 70.0, default: 1) }
+    it("takes 70.0 as 70") { assert_same 70, load_value("Integer", 70.0, default: 1) }
+    it("rejects 70.5") { assert_equal "value: expected Integer, got 70.5", error_for("Integer", 70.5, default: 1) }
+    it("rejects NaN") { assert_equal "value: expected Integer, got NaN", error_for("Integer", Float::NAN, default: 1) }
+    it("rejects Infinity") {
+      assert_equal "value: expected Integer, got Infinity", error_for("Integer", Float::INFINITY, default: 1)
+    }
+    it("limits 70.0 as 70") {
+      assert_equal "value: 70 is not in 1..3", error_for("Integer", 70.0, default: 1, in: 1..3)
+    }
     it("rejects nil") { assert_equal "value: expected Integer, got nil", error_for("Integer", nil, default: 1) }
+    it("keeps a default strict") {
+      error = assert_raises(Typemap::DefinitionError) { load_value("Integer", 1, default: 1.0) }
+      assert_match(/its default 1.0 does not fit Integer/, error.message)
+    }
   end
 
   describe "Float" do
     it("takes a Float") { assert_equal 0.5, load_value("Float", 0.5, default: 1.0) }
-    it("rejects an Integer, uncoerced") {
-      assert_equal "value: expected Float, got 1", error_for("Float", 1, default: 1.0)
+    it "takes 5 as 5.0" do
+      value = load_value("Float", 5, default: 1.0)
+      assert_equal 5.0, value
+      assert_kind_of Float, value
+    end
+    it("takes 5 in a Float?") { assert_kind_of Float, load_value("Float?", 5) }
+    it("rejects an Integer a Float would round") {
+      assert_equal "value: expected Float, got 9007199254740993", error_for("Float", (2**53) + 1, default: 1.0)
+    }
+    it("rejects an Integer beyond a Float") {
+      assert_match(/expected Float/, error_for("Float", 10**400, default: 1.0))
     }
   end
 
