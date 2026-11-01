@@ -9,8 +9,9 @@ quietly.
 ## Why it is not built yet
 
 Nothing needs it while settings carry their unit in the key — `min_actual_gib = 8`,
-`veto_seconds = 60` — plain integers that cannot be misread. It waits on virtui's `Q_units`
-(its `design/ideas/config-file.md`): unit in the key, or unit in the value.
+`veto_seconds = 60` — plain integers that cannot be misread. virtui, the one app that asked,
+settled its `Q_units` on that (2026-11-01, its `design/ideas/config-file.md`), so no app needs
+this yet.
 
 ## The two designs
 
