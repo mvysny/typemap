@@ -98,17 +98,13 @@ are the two shapes a class can take; elsewhere it is just "the class".
 
   The shape is picked per class, not per mapper — one tree can mix them, an accessor-class
   `State` holding a data-class `Window` — and by a fact, not a guess: `klass < Data`. Shapes are
-  internal, with no `shapes:` option until a third one is needed. `Struct` is the likely
-  third: its members have public readers and writers, so the accessor rule would find them, but
-  their `source_location` is `nil`, so their order must come from `members`.
-- **An accessor class's properties are its public reader + writer pairs** — the zero-argument
-  Java bean, by Ruby's own means. Only methods are read, never ivars or what `initialize` does:
-  a hand-written `def foo` / `def foo=(v)` counts like an `attr_accessor`, inherited and
-  mixed-in pairs count, a reader or writer alone does not (`attr_reader :path` stays out), and
-  only names matching `/\A[a-z_]\w*=\z/` are writers (not `==`, `[]=`, `<=`). The rule
-  ActiveModel's `assign_attributes` already assumes: it `public_send`s `"#{key}="`. An immutable
-  plain class with a keyword constructor has readers and no writers, so no properties:
-  immutable means a data class.
+  internal, with no `shapes:` option until a third one is needed; `Struct` is the likely
+  third — `struct-shape.md`.
+- **An accessor class's properties are its public reader + writer pairs** (why:
+  `D_accessor_properties`). Only methods are read, never ivars or what `initialize` does: a
+  hand-written `def foo` / `def foo=(v)` counts like an `attr_accessor`, inherited and mixed-in
+  pairs count, a reader or writer alone does not (`attr_reader :path` stays out), and only
+  names matching `/\A[a-z_]\w*=\z/` are writers (not `==`, `[]=`, `<=`).
 - **An accessor that is not a setting is left out**: made `private` or `protected` — Ruby's
   own visibility — or, when it must stay public (a listener the app sets from outside),
   named with `ignore :on_change` from `Confect::Constrain`. `ignore` means what
@@ -120,10 +116,9 @@ are the two shapes a class can take; elsewhere it is just "the class".
   never an error — right for state and for an optional config file. (So a `Data` keyword
   without a default is not a way to make a key required: that class cannot be built bare.)
 - **Dump order is declaration order.** A data class dumps in `members` order; an accessor class
-  sorts by each reader's `instance_method(…).source_location`, which an `attr_accessor` reports
-  as its own line. Ruby promises no order for `public_instance_methods` — Ruby 3.3 lists a class
-  declaring `b`, `a`, `c` as `[:b, :b=, :a=, :c, :c=, :a]` — and `state.json` should come out
-  stable for diffs. Accessors declared on one line tie; ties break by name.
+  sorts by each reader's `instance_method(…).source_location`, since `public_instance_methods`
+  comes in no declared order (`R_ruby_reflection`) and `state.json` should come out stable for
+  diffs. Accessors declared on one line tie; ties break by name.
 - **Nested objects**: the mapper holds its type strategy, so `load` calls itself for each nested
   Hash whose property's type is a mappable class, handing down the path for error messages
   (`ballooning.raise_at_percent`); `validate` runs bottom-up, nested objects first.
@@ -177,9 +172,7 @@ Confect::Mapper.new(types: Confect::Mapper::RBSTypes.new(sig: ['sig/virtui.rbs']
   `rbs` gem*. `RBSTypes` parses full RBS syntax and then rejects what is outside the subset
   with "unsupported type"; `BasicTypes` rejects it while parsing. A spec feeds the same type
   strings to both whenever `rbs` is installed, so the two parsers cannot drift.
-- **The default does not supply a type.** `65` is not read as `Integer`: with strict types the
-  guess has consequences (a `65` default would reject `65.5` from the file, which the author may
-  never have meant), and it could not type `nil`, `[]` or `{}` anyway. Without RBS, `State` then
+- **The default does not supply a type** (why: `D_types_declared`). Without RBS, `State` then
   needs `constrain :system_pane_visible, :log_pane_visible, type: 'bool'`; with RBS it costs
   nothing, since sord's gate demands a YARD type on every property. The default is still checked
   against the type.
@@ -198,10 +191,9 @@ otherwise the gap hides until some user sets that property:
 These can be relaxed once a real use case runs into them, and not before.
 
 **Nil is spelled out, as in RBS.** `type: 'Integer'` does not allow `nil`; `type: 'Integer?'`
-does. The type is always an RBS string, never a Ruby class: `type: Integer` would leave a reader
-asking whether nil is allowed, and `T.nilable`-style wrappers would be a second type language.
-A wrongly non-nil type with a `nil` default raises (*a default the type rejects*), so the slip
-shows up at once.
+does. The type is always an RBS string, never a Ruby class (`D_types_declared`). A wrongly
+non-nil type with a `nil` default raises (*a default the type rejects*), so the slip shows up at
+once.
 
 **No `not_nil:` or `required:` yet.** TOML has no null, so a TOML file can only leave a key out,
 which means the default. In JSON, `not_nil:` would forbid an explicit `null` on a property whose
@@ -214,10 +206,8 @@ no required key; pikuri has some (`config-file.md`), so `required:` comes with p
 RBS is Ruby's own type-signature language; the `rbs` gem ships with Ruby (3.4.0 bundled with
 Ruby 3.3; 4.2.0 is current, released 2026-08, 98M downloads, depends on prism, tsort, logger).
 virtui would still need a `gem 'rbs'` line in its Gemfile, like `racc` today; it has a native
-extension. Ruby 3.3's bundled 3.4 may be enough, if its `parse_signature` matches 4.2's —
-unverified. `RBSTypes` reads only signature files. RBS 4.0's **inline** declarations (`attr_accessor :last_vm #: String?`)
-are left out. They are still marked experimental, and they are awkward for a `Data` class:
-`Ballooning = Data.define(…)` is a constant to the inline parser, not a class with attributes.
+extension. Whether Ruby 3.3's bundled 3.4 is enough: `R_rbs_parser`. `RBSTypes` reads only
+signature files, never inline declarations (`D_types_declared`).
 
 **Where the file comes from is the project's business.** tuile writes its `sig/tuile.rbs`
 with **sord** (7.1.0), which turns YARD tags into RBS; a project that already has YARD on every
@@ -302,15 +292,13 @@ Tuile::Size#width:        Integer         sig/tuile.rbs, line 299
 Tuile::Size#empty?:       bool            sig/tuile.rbs, line 281
 ```
 
-What the mapper needs from the `rbs` gem, read in `rbs-4.2.0`'s source:
+What the mapper needs from the `rbs` gem — the parser alone, never the type environment
+(`R_rbs_parser`):
 
-- **The types, without loading the RBS environment.** `RBS::Parser.parse_signature(source)`
-  parses on its own, and `RBS::Parser.parse_type("Integer?")` parses a `constrain` type string.
-  Measured: tuile's 870 KB `sig/tuile.rbs` parses in about 58 ms.
-- **Not RBS's own runtime checker.** `RBS::Test::TypeCheck#value(val, type)` exists, but its
-  constructor wants a `DefinitionBuilder`, i.e. the whole environment, core signatures
-  included. The mapper translates RBS's type AST into its own type objects instead, for a
-  small subset — the same subset `BasicTypes` parses with a few dozen lines of recursive
+- **`RBS::Parser.parse_signature`** for `sig/*.rbs`, **`RBS::Parser.parse_type`** for a
+  `constrain` type string.
+- **Its own checks, not RBS's.** The mapper translates RBS's type AST into its own type objects
+  for a small subset — the same subset `BasicTypes` parses with a few dozen lines of recursive
   descent: `Integer`, `Float`, `String`, `bool`, `T?` (nil allowed), `Array[T]`,
   `Hash[String, T]`, literal unions (`"short" | "verbose"`, which give enums for free), and
   mappable classes. Anything else raises "unsupported type".
@@ -354,84 +342,15 @@ end
   `validate`.
 - Without RBS every property gets a `constrain` line, for its type at least; under `RBSTypes`
   only a property with limits does.
-- **Named `constrain`**: the line adds limits to a property the class already declares, and a type
-  is the strictest limit. Not `setting`, since every property is a setting, annotated or not.
-  Not a macro named `property`, since sorbet's `prop` and Rails' `attribute` both define the
-  accessor; the noun stays for what the mapper loads and dumps. Not
-  `validate`, since that is the class's own cross-property hook, and Rails' `validate :foo`
-  registers the method `foo`.
-- **`constrain` does not define the accessor**, though Rails' `attribute` does. On a `Data` class
-  the reader exists and the instance is frozen, so a generated writer would raise
-  `FrozenError`. Once the macro owns the property, `default:` follows, then a generated
-  `initialize`, and it has become dry-struct or `T::Struct`: a class form the mapper imposes. A
-  metaprogrammed accessor is also invisible to RBS, Steep, the IDE and YARD; this project wants
-  YARD on every public method. The one-line form already exists in standard Ruby:
-  `attr_accessor :last_vm #: String?`.
+- **`ignore :name`**, from the same module, leaves out a public accessor that is not a setting.
 
-Settled: the `constrain` macro, not a plain constant the mapper reads (`CONSTRAINTS = {
-min_actual_gib: { type: 'Integer', in: 1.. } }`). A map of maps has no type safety. The macro
-carries YARD a reader or an LLM agent follows, and it rejects an unknown option (`in_:`) the
-moment the class loads. It also works in both `Data` styles: a constant written inside a
-`X = Data.define(…) do … end` block lands in the enclosing scope, not in `X`, silently even
-under `-W`, so the constant would only work with `class X < Data.define(…)`. The macro's cost
-is that the class references the mapper.
-
-### Later, perhaps: JSON Schema as an alternative to `constrain`
-
-Settled: the mapper starts with `constrain`. A JSON Schema may come later as a second way to
-give the same types and limits; it is not the first one built.
-
-A JSON Schema file beside the `Data` classes, checked with **json_schemer** before the mapper
-runs — a third type strategy. The classes stay as they are, with their YARD and `validate`.
-The mapper still turns the Hash into objects, nested ones included. It only stops checking
-types, because the schema has already checked them. JSON Schema has no notion of a Ruby class,
-so the schema must name the class of each nested object: a custom keyword (`"x-ruby-class":
-"Ballooning"`) or a convention mapping `$defs/Ballooning` to `Ballooning`. The schema ships with the app, not with the user's file, so this keeps *the file
-never names a class*.
-
-Spiked with json_schemer 2.5.0 (2026-11-01):
-
-```
-"70"                    → value at `/ballooning/raise_at_percent` is not an integer
-170                     → number at `/ballooning/raise_at_percent` is greater than: 100
-mode: "x"               → value at `/ballooning/mode` is not one of: ["short", "verbose"]
-rasie: 1                → object property at `/ballooning/rasie` is a disallowed additional property
-70.0                    → passes: JSON Schema's `integer` is any number with no fraction (draft-06 on)
-```
-
-- **For:** it reports every error at once (requirement 2 of `config-file.md`, which this mapper
-  drops). Types, ranges, enums, nullable fields, arrays and unknown keys are standard keywords,
-  so RBS, `constrain` and our own type-AST subset go away. TOML editors get completion
-  and checking from it: Taplo and Tombi validate TOML against a JSON Schema named in a top
-  `#:schema ./virtui.schema.json` comment, or found through SchemaStore.
-- **Against:** every key is listed twice, once in the class and once in the schema; a spec
-  comparing `members` with `properties` catches drift, but cannot stop it. A JSON Schema is
-  verbose to write by hand for what one `constrain` line says. The cross-property rule and
-  custom types (`"8 GiB"`) stay in `validate` and the mapper either way. `70.0` passes as an
-  Integer, which needs a check of our own. It adds four runtime gems: hana, regexp_parser,
-  simpleidn and bigdecimal.
-- **TOML:** JSON Schema checks the parsed data model, not the syntax, so a `Tomlrb` Hash is
-  checked like a JSON one. TOML's date and time values have no JSON type; what json_schemer does
-  with a Ruby `Time` is unverified. A TOML-native schema exists only as a proposal:
-  [toml-schema.org](https://github.com/brunoborges/toml-schema), with the schema itself written in
-  TOML. toml-lang has not adopted it (toml-lang#116, #792), and no Ruby implementation is known.
+Why a macro rather than a `CONSTRAINTS` constant, why it defines no accessor, and why the name:
+`D_constrain_macro`. A JSON Schema as a later alternative: `json-schema.md`.
 
 ## Compared
 
-- **sorbet-runtime `T::Struct`** (0.6.13612, 158M downloads, no runtime dependencies, released
-  2026-10-31): the closest existing thing — typed fields, defaults, per-field mutability,
-  nested structs, `from_hash` / `from_hash!` (the bang raises on unknown keys) and `serialize`.
-  But it *is* the class form (`< T::Struct` or `include T::Props`), so no `Data`, no plain
-  class, and it carries Stripe's ODM history (`dont_store`, `redaction`, `chalk-odm`
-  warnings). Decisive, spiked with 0.6.13506 on 2026-11-01: **`from_hash` assigns blindly.**
-  The constructor and setters type-check (`TypeError: Can't set Ballooning.raise_at_percent
-  to "70" … need a Integer`), but `from_hash` — the one path a config file takes — puts
-  `"70"` and `70.0` into an `Integer` prop silently, against *Strict types, no coercion*. A
-  required prop missing from the Hash does raise (`Tried to deserialize a required prop from a
-  nil value`); `from_hash!` raises on an unknown key, `from_hash` keeps it in `@_extra_props`.
-- **dry-struct / dry-validation / dry-configurable, hashie, anyway_config, shale,
-  activemodel** — weighed in `config-file.md`: each either brings its own class form, gem
-  family or lenient casting.
+Why not dry-struct, ActiveModel or shale: `D_own_mapper`; why not `T::Struct`:
+`D_no_t_struct`.
 
 For the locations layer, from rubygems on 2026-11-01:
 

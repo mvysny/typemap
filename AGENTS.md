@@ -22,6 +22,8 @@ checking, and optionally where an app's config and state files live.
 |---|---|---|
 | `README.md` | the pitch, install, the guide a user reads | — |
 | `AGENTS.md` (this) | promises, invariants, the module map, conventions, commands | every turn |
+| `design/decisions.md` | why this and not that — `D_` entries, FAQ-shaped | lazy |
+| `design/research.md` | what Ruby, rbs and sorbet-runtime actually do — `R_` entries, each claim with provenance | lazy |
 | `design/ideas/*.md` | one scratchpad per idea in flight; deleted once its nuggets land in a row above | lazy |
 | doc comments | what one symbol does, why it is shaped so, why a constant has its value | at the symbol |
 
@@ -37,7 +39,7 @@ Every fact lives in exactly one of these; the others link to it.
 - `lib/confect.rb` — the `Confect` namespace and its `require_relative`s.
 - `lib/confect/` → `Confect::` — the mapper, its type and shape strategies, `Constrain`.
 - `spec/` — rspec, one spec file per class.
-- `design/` — the tripwire script and `design/ideas/`.
+- `design/` — the lazy docs above, the tripwire script and `design/ideas/`.
 
 ## Conventions
 
