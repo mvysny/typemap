@@ -55,6 +55,7 @@ Every fact lives in exactly one of these; the others link to it.
 - **YARD on every public module, class and method**, concrete types in every tag, `@raise` for expected exceptions.
 - **Errors are loud.** Unexpected input or state raises with the offending value and its path; never a silent default.
 - **Composition over inheritance.** Shared mechanics become a concrete helper taking keyword parameters, not a base class.
+- **Ruby functions over declarative rules.** A declaration states what a value may be; once it must say how to get there, the app writes a function instead of Typemap growing an option (`D_functions_over_rules`).
 - **Readable, not obfuscated.** The simplest implementation that does the job; no option or extension point ahead of a real use.
 - **Pre-1.0: break APIs freely**, with a `**Breaking:**` CHANGELOG line carrying the migration.
 

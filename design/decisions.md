@@ -120,3 +120,16 @@ Ruby, where `1` for a Float is a slip the class should fix. Why not a literal un
 reads as a pick from a list, where `3.0` is odd rather than a writer's habit — until a real use
 says otherwise. Why not `"70"`: a String is no number;
 parsing it is the coercion **Strict, never coerced** rules out.
+
+## D_functions_over_rules — Why a function the app writes, rather than one more declarative option?
+
+A declaration states what a value may be — a type, a range, a format — and Typemap checks it.
+Once it must say how to get there — which class a tagged table becomes, how `"8 GiB"` becomes a
+`Size` — it starts a rule language, and every rule language is outgrown: serde's enum tagging grew
+four representations plus `rename`, `alias` and `flatten`, and apps still hand-write
+`Deserialize`. So the app gets a hook in plain Ruby, as it already does for cross-property checks
+with `validate`. Why it stays safe: the app's code picks the class, so **The file never names a
+class** holds. Why the declaration stays beside the hook: the declared type bounds what the
+function may return and is checked when the class is first read, so a hook cannot smuggle in an
+unchecked object. The cost: strictness inside the hook is the app's; Typemap checks only what
+comes out. A hook is still an extension point, added with its first real use.
