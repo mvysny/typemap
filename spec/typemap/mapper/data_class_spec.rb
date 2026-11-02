@@ -31,6 +31,36 @@ module DataClassSpec
 
     def initialize(raise_at:, raise_by: 1) = super
   end
+
+  # A table another program owns.
+  class Ui < Data.define(:show_thinking, :ballooning)
+    extend Typemap::Constrain
+
+    constrain :show_thinking, type: "bool"
+    constrain :ballooning, type: "Ballooning"
+    unknown :ignore
+
+    def initialize(show_thinking: true, ballooning: Ballooning.new) = super
+  end
+
+  class Strict < Data.define(:level)
+    extend Typemap::Constrain
+
+    constrain :level, type: "Integer"
+    unknown :raise
+
+    def initialize(level: 1) = super
+  end
+
+  class Shell < Data.define(:table, :panes, :strict)
+    extend Typemap::Constrain
+
+    constrain :table, type: "Ui"
+    constrain :panes, type: "Array[Ui]"
+    constrain :strict, type: "Strict"
+
+    def initialize(table: Ui.new, panes: [], strict: Strict.new) = super
+  end
 end
 
 RSpec.describe Typemap::Mapper, "with a data class" do
@@ -104,6 +134,35 @@ RSpec.describe Typemap::Mapper, "with a data class" do
 
     it "rejects an unknown unknown: policy" do
       assert_raises(ArgumentError) { mapper.load(DataClassSpec::Ballooning, {}, unknown: :warn) }
+    end
+  end
+
+  describe "a class's own unknown policy" do
+    it "ignores the class's unknown keys in a strict load, in a table and in each array entry" do
+      shell = mapper.load(DataClassSpec::Shell, { "table" => { "show_thinking" => false, "newer" => 1 },
+                                                  "panes" => [{ "newer" => 2 }] })
+      refute shell.table.show_thinking
+      assert_equal [DataClassSpec::Ui.new], shell.panes
+    end
+
+    it "leaves the enclosing class to the load's policy" do
+      error = assert_raises(Typemap::DataError) { mapper.load(DataClassSpec::Shell, { "newer" => 1 }) }
+      assert_equal "newer: unknown key; Shell has table, panes, strict", error.message
+    end
+
+    it "leaves a nested class to the load's policy" do
+      error = assert_raises(Typemap::DataError) do
+        mapper.load(DataClassSpec::Shell, { "table" => { "ballooning" => { "rasie" => 1 } } })
+      end
+      assert_equal "table.ballooning.rasie: unknown key; Ballooning has raise_at_percent, shrink_at_percent, " \
+                   "pinned_vms", error.message
+    end
+
+    it "raises on the class's unknown keys in an ignoring load" do
+      error = assert_raises(Typemap::DataError) do
+        mapper.load(DataClassSpec::Shell, { "newer" => 1, "strict" => { "levle" => 2 } }, unknown: :ignore)
+      end
+      assert_equal "strict.levle: unknown key, did you mean level?", error.message
     end
   end
 

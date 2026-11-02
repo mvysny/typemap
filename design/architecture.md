@@ -25,14 +25,14 @@ doc-comment content has crept in.
 
 **Reading a class** (once per class per mapper, under the mapper's lock):
 
-1. `Mapper#plan_for` → `Plan.build`: the shape, the property names minus `ignore`d ones, the required keywords a data class's `initialize` names, and — when there are none — a bare `klass.new` as the default instance.
+1. `Mapper#plan_for` → `Plan.build`: the shape, the class's `unknown` policy, the property names minus `ignore`d ones, the required keywords a data class's `initialize` names, and — when there are none — a bare `klass.new` as the default instance.
 2. Per property, the strategy's `type_for` gives a `Type`; `Limits#check_against` checks the `constrain` limits fit it; `required:` must sit on a type that takes `nil`. Then each default must pass its type and limits, and a `required:` one must be `nil`.
 3. Any failure is a `DefinitionError` naming `Klass#property`, before a file is looked at. A data class with a required keyword has no default instance, so its defaults are checked on each load's base instead.
 4. The plan is cached, then every class nested in it is planned the same way — so a class nested in itself terminates.
 
 **Loading a file** (`Mapper#load`) — conversion:
 
-1. A `Session` carries the mapper, the `unknown:` policy and the enclosing objects' plans down the tree; each object loads its properties with a copy that adds its own.
+1. A `Session` carries the mapper, the `unknown:` policy — which a plan's own, from the class's `unknown`, overrides for that object's keys (`D_unknown_per_class`) — and the enclosing objects' plans down the tree; each object loads its properties with a copy that adds its own.
 2. `Session#load_object` gets the plan, normalises the keys to Strings, rejects unknown ones, and takes the base: the parent's nested object, else a fresh one — a bare `klass.new`, or, for a data class with required keywords, `klass.new` given just those, loaded first from the file and each missing one a `DataError`.
 3. Per other key present: `Type#load` checks it strictly — a `ClassRef` recurses with the base's nested object as the nested base.
 4. The shape builds the object from the base plus the loaded values, never changing the base.

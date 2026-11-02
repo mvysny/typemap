@@ -61,7 +61,8 @@ File.write(path, JSON.pretty_generate(mapper.dump(state)))            # String k
 
 - **A key present replaces the default; a key absent keeps it.** A nested Hash loads onto the
   default's nested object, so a file that sets one nested key keeps the other nested defaults.
-- **An unknown key raises**, unless `unknown: :ignore`.
+- **An unknown key raises**, unless `unknown: :ignore`; a class may set its own policy
+  ([Unknown keys](#unknown-keys)).
 - **Keys may be Strings or Symbols** (`JSON.load_file(path, symbolize_names: true)` works).
 - **`dump` writes properties in declaration order** and checks every value as `load` would — its
   type, its limits, a required key, the class's `validate` — so a bug that put a wrong value in
@@ -131,9 +132,10 @@ whatever it raises becomes a `Typemap::DataError` carrying the object's path.
 
 ### `constrain` at a glance
 
-`extend Typemap::Constrain` gives the class two macros. `constrain` declares a property's type
-and limits, and `ignore` leaves a public accessor out of the mapping. Neither one defines
-anything on the class.
+`extend Typemap::Constrain` gives the class three macros. `constrain` declares a property's type
+and limits, `ignore` leaves a public accessor out of the mapping, and `unknown` says what a load
+does with a key the class has no property for ([Unknown keys](#unknown-keys)). None of them
+defines anything on the class.
 
 | Option | Takes | On | A miss reads |
 |---|---|---|---|
@@ -197,6 +199,34 @@ end
   out the whole `[llm]` table. An accessor class refuses an explicit JSON `null` too; a data
   class's `String?` keyword takes it.
 - **`dump` raises** on a required accessor still `nil`, since the file would not load back.
+
+### Unknown keys
+
+A key the class has no property for raises, unless `load` gets `unknown: :ignore`. That is all
+or nothing for one file. A file shared by several programs often needs both: strict everywhere,
+except for a table another program owns, which may gain keys tomorrow that this app doesn't
+read. `unknown` sets the policy on that table's class:
+
+```ruby
+class UiTable < Data.define(:show_thinking)
+  extend Typemap::Constrain
+
+  constrain :show_thinking, type: "bool"
+  unknown :ignore              # the TUI owns [ui]; a key it adds must not stop this app from starting
+
+  def initialize(show_thinking: true) = super
+end
+```
+
+- **The class's policy wins over `load`'s, both ways.** `unknown` takes `load`'s two values,
+  `:ignore` and `:raise`; a class that gives neither follows `load`'s `unknown:`.
+- **It covers the class's own keys, wherever the class appears**: a table, or each entry of an
+  array. A class nested in it keeps its own policy, or `load`'s. A subclass inherits it.
+- **An ignored key is dropped silently.** Typemap does not report which keys it dropped.
+- **`unknown :raise` inside an `unknown: :ignore` load** brings back the failure `:ignore` avoids:
+  a newer version of the app that adds a key to that class's table breaks this one.
+- **A value other than `:raise` or `:ignore`**, or `unknown` given twice in one class, raises
+  `ArgumentError` the moment the class body runs.
 
 ### Naming an array entry
 

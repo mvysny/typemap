@@ -233,3 +233,16 @@ validation and dump hold only objects, and `s.url.downcase` wants the typed valu
 raises on identity equality: it would always pass. Why two `nil`s collide: Ruby's `nil == nil`,
 not SQL's NULLs, which would surprise a Ruby programmer. Why per array: a key unique across two
 arrays is rare, and `validate` still does it.
+
+## D_unknown_per_class — Why does a class set its own unknown-key policy, rather than the property holding it, or only `load`?
+
+A file several programs share is strict everywhere but in the table another program owns, and
+`load`'s `unknown:` is one switch for the whole file. Why on the class: who owns a table is a
+fact about the table, true wherever it appears, an array's entries included; a property's switch
+would let one class be strict in one file and lenient in another, which no app needs. Why the
+class wins both ways, and the classes nested in it don't inherit it: one rule, and a class means
+the same wherever it sits; `:raise` under an ignoring load has no use yet, but leaving it out
+saves no code and costs an asymmetric rule. Why `unknown`, though it reads close to `ignore`: it
+mirrors `load`'s keyword, same values. Why no report of the dropped keys: no app needs one yet;
+when one does, a per-key `->(path, key)` composes with Typemap's paths, a list at the end makes
+one log line.

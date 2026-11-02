@@ -60,7 +60,7 @@ module Typemap
     #   says `write [[server]], not [server]`, `:ruby` says `wrap it in an array` and names the
     #   found value's class, `got Integer 70`; `:json` and `:yaml` likewise
     # @param unknown [Symbol] `:raise` on a key the class has no property for, or `:ignore` it —
-    #   say, a key a newer version of the app wrote
+    #   say, a key a newer version of the app wrote; a class's own `unknown` wins over it
     # @return [Object] an instance of `klass`
     # @raise [DataError] if the data does not fit the class
     # @raise [DefinitionError] if the class cannot be mapped
@@ -200,7 +200,7 @@ module Typemap
     # @!attribute [r] mapper
     #   @return [Mapper]
     # @!attribute [r] unknown
-    #   @return [Symbol] `:raise` or `:ignore`
+    #   @return [Symbol] `:raise` or `:ignore`, for a class whose plan gives no `unknown`
     # @!attribute [r] wording
     #   @return [Module] the {Wording} for the `source:`
     # @!attribute [r] parents
@@ -274,7 +274,7 @@ module Typemap
       # key or doesn't, while a search across the tree guesses. A key in the wrong sibling is told
       # by the class's own key list.
       def reject_unknown(plan, values, path)
-        return if unknown == :ignore
+        return if (plan.unknown || unknown) == :ignore
 
         names = plan.names.map(&:to_s)
         key = (values.keys - names).first

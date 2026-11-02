@@ -14,5 +14,6 @@
 - Add the `unique: true` and `unique_by:` limits for an Array — `unique_by: :id` names a property of the entries, `unique_by: ->(m) { m.url.downcase }` a function — reported at the second entry, `server[2] "local".id: duplicate of server[0], both "local"`.
 - Add the `not_blank: true` limit for a String, which refuses `""` and `"  "`, and `not_empty: true` for an Array or a Hash; a miss reads `url: must not be blank`, the path down to the key.
 - Add `Typemap::Constrain` — `constrain :name, type: "Integer", in: 1..100, format: /…/` and `ignore :name`, metadata the mapper reads, defining nothing on the class.
+- Add a class's own unknown-key policy, `unknown :ignore` or `unknown :raise`, which wins over `load`'s `unknown:` for that class's keys wherever it appears — a table another program owns stays lenient in an otherwise strict file.
 - Add `Typemap::Mapper::BasicTypes`, the default type strategy (types from `constrain type:`), and `Typemap::Mapper::RBSTypes` (types from `sig/*.rbs`, with the app's `rbs` gem).
 - Add `Typemap::DefinitionError`, raised the first time the mapper reads a class it cannot map — no type, a default the type rejects, a limit the type cannot take.

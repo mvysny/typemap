@@ -9,6 +9,7 @@ module Typemap
   #     constrain :url, type: "String", not_blank: true        # not "" and not "  "
   #     constrain :servers, type: "Array[Server]", unique_by: :id
   #     ignore :on_change
+  #     unknown :ignore                                         # keys this app does not read
   #
   # Each call records metadata and defines nothing — no accessor, no default, no `initialize`;
   # the class stays as written (`D_constrain_macro`). An unknown option is Ruby's own
@@ -90,6 +91,26 @@ module Typemap
       typemap_ignored.concat(names - typemap_ignored)
     end
 
+    # Sets what a load does with a key of this class that names no property, overriding `load`'s
+    # `unknown:` both ways:
+    #
+    #     unknown :ignore   # a table another program owns, which may grow keys this app doesn't read
+    #
+    # Only this class's own keys: a class nested in it keeps its own policy, or `load`'s. A
+    # subclass inherits it.
+    #
+    # @param policy [Symbol] `:raise` or `:ignore`, the values `load`'s `unknown:` takes
+    # @return [void]
+    # @raise [ArgumentError] on another value, or a second call in one class
+    def unknown(policy)
+      unless %i[raise ignore].include?(policy)
+        raise ArgumentError, "unknown: must be :raise or :ignore, got #{policy.inspect}"
+      end
+      raise ArgumentError, "unknown: given twice" if typemap_unknown
+
+      @typemap_unknown = policy
+    end
+
     # @api private
     # @return [Hash{Symbol => Hash}] what `constrain` recorded on this class itself
     def typemap_constraints
@@ -101,6 +122,10 @@ module Typemap
     def typemap_ignored
       @typemap_ignored ||= []
     end
+
+    # @api private
+    # @return [Symbol, nil] what `unknown` recorded on this class itself
+    def typemap_unknown = @typemap_unknown
 
     # The constraints of `klass` and its ancestors, a subclass's option winning over its
     # superclass's.
@@ -126,6 +151,16 @@ module Typemap
     # @return [Array<Symbol>] the names `klass` and its ancestors `ignore`
     def self.ignored_for(klass)
       klass.ancestors.select { |mod| mod.singleton_class.include?(Constrain) }.flat_map(&:typemap_ignored).uniq
+    end
+
+    # @param klass [Class]
+    # @return [Symbol, nil] the `unknown` policy of `klass` or its nearest ancestor that gives one;
+    #   `nil` when none does, leaving it to `load`'s `unknown:`
+    def self.unknown_for(klass)
+      klass.ancestors.each do |mod|
+        return mod.typemap_unknown if mod.singleton_class.include?(Constrain) && mod.typemap_unknown
+      end
+      nil
     end
 
     private

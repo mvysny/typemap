@@ -33,9 +33,12 @@ module Typemap
     # @!attribute [r] required_keywords
     #   @return [Array<Symbol>] the keywords a data class cannot build without; a load with no base
     #     must find each in the file
+    # @!attribute [r] unknown
+    #   @return [Symbol, nil] the class's `unknown` policy, `:raise` or `:ignore`; `nil` follows
+    #     `load`'s `unknown:`
     #
     # @api private
-    Plan = Data.define(:klass, :shape, :properties, :required_keywords) do
+    Plan = Data.define(:klass, :shape, :properties, :required_keywords, :unknown) do
       # @param klass [Class]
       # @param types [#type_for] the mapper's type strategy
       # @return [Plan]
@@ -53,7 +56,8 @@ module Typemap
         required_keywords = shape.required_keywords(klass, names)
         default = bare_new(klass) if required_keywords.empty?
         properties = names.map { |name| property(klass, name, constraints[name], types) }
-        plan = new(klass: klass, shape: shape, properties: properties, required_keywords: required_keywords)
+        plan = new(klass: klass, shape: shape, properties: properties, required_keywords: required_keywords,
+                   unknown: Constrain.unknown_for(klass))
         plan.check_default(default) if default
         plan
       end

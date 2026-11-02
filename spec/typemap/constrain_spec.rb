@@ -73,6 +73,20 @@ RSpec.describe Typemap::Constrain do
     assert_raises(ArgumentError) { klass.constrain(:a) }
   end
 
+  it "inherits a superclass's unknown policy, which a subclass may replace" do
+    base = klass.tap { |k| k.unknown(:ignore) }
+    assert_equal :ignore, Typemap::Constrain.unknown_for(Class.new(base))
+    assert_equal :raise, Typemap::Constrain.unknown_for(Class.new(base).tap { |k| k.unknown(:raise) })
+    assert_nil Typemap::Constrain.unknown_for(klass)
+  end
+
+  it "takes unknown only as :raise or :ignore, and once per class" do
+    error = assert_raises(ArgumentError) { klass.unknown(:warn) }
+    assert_equal "unknown: must be :raise or :ignore, got :warn", error.message
+    error = assert_raises(ArgumentError) { klass.tap { |k| k.unknown(:ignore) }.unknown(:raise) }
+    assert_equal "unknown: given twice", error.message
+  end
+
   it "rejects a name that is not a Symbol" do
     assert_raises(ArgumentError) { klass.constrain("a", type: "Integer") }
     assert_raises(ArgumentError) { klass.ignore("a") }
