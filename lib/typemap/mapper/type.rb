@@ -152,6 +152,32 @@ module Typemap
         def to_s = "Hash[String, #{value}]"
       end
 
+      # `Object`: plain data passed through as the file holds it, for a value whose meaning is
+      # someone else's — `Hash[String, Object]` for extra keys sent to a server verbatim:
+      #
+      #   { "kwargs" => { "enable_thinking" => false, stop: nil } }    # in
+      #   { "kwargs" => { "enable_thinking" => false, "stop" => nil } } # out, new containers
+      #
+      # Plain data is what Typemap's other types load — a String, Integer, Float, bool, Array or
+      # Hash, `nil` nested inside — on load and dump alike, so a `Proc` or a TOML date-time
+      # raises. Keys are Strings all the way down, a Symbol taken as its String. `nil` in its own
+      # place needs `Object?`, as every type does. See `D_object_plain_data`.
+      Plain = Data.define do
+        def load(value, path, _session, _base) = dump(value, nil, path)
+
+        def dump(value, _mapper, path)
+          Type.mismatch(self, value, path) if value.nil?
+          Type.plain(value, path)
+        end
+
+        def each_object(_value, _path) = nil
+        def accepts?(value) = !value.nil? && Type.plain?(value)
+        def limits = []
+        def numeric? = false
+        def nested_classes = []
+        def to_s = "Object"
+      end
+
       # A class of the app's own — a data class or an accessor class — loaded from a Hash by
       # the mapper, recursively.
       #
@@ -190,6 +216,33 @@ module Typemap
           float if float.finite? && float.to_i == value
         elsif klass == Integer && value.is_a?(Float)
           value.to_i if value.finite? && value.to_i == value
+        end
+      end
+
+      PLAIN_SCALARS = [String, Integer, Float, TrueClass, FalseClass, NilClass].freeze
+
+      # A copy of plain data, every Hash's keys as Strings.
+      #
+      # @param value [Object]
+      # @param path [String]
+      # @return [Object] the copy
+      # @raise [DataError] on a value no Typemap type loads, or a key neither String nor Symbol
+      def self.plain(value, path)
+        case value
+        when Array then value.each_with_index.map { |item, i| plain(item, "#{path}[#{i}]") }
+        when Hash then string_keys(value, path).to_h { |key, item| [key, plain(item, child(path, key))] }
+        when *PLAIN_SCALARS then value
+        else mismatch("plain data (String, Integer, Float, bool, nil, Array or Hash)", value, path)
+        end
+      end
+
+      # @param value [Object]
+      # @return [Boolean] whether `value` is plain data with String keys, as a default must be
+      def self.plain?(value)
+        case value
+        when Array then value.all? { |item| plain?(item) }
+        when Hash then value.all? { |key, item| key.is_a?(String) && plain?(item) }
+        else PLAIN_SCALARS.any? { |klass| value.is_a?(klass) }
         end
       end
 

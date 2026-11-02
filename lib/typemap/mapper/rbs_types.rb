@@ -119,6 +119,7 @@ module Typemap
         when ::RBS::Types::Literal then [:literal, type.literal]
         when ::RBS::Types::Bases::Bool then [:bool]
         when ::RBS::Types::Bases::Nil then [:nil]
+        when ::RBS::Types::Bases::Any then [:untyped]
         else TypeBuilder.unsupported(type.to_s)
         end
       end

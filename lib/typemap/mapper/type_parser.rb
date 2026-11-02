@@ -7,12 +7,12 @@ module Typemap
     #
     #     type    := postfix ('|' postfix)*
     #     postfix := primary '?'*
-    #     primary := '(' type ')' | literal | 'bool' | 'nil' | name ('[' type (',' type)* ']')?
+    #     primary := '(' type ')' | literal | 'bool' | 'nil' | 'untyped' | name ('[' type (',' type)* ']')?
     #     name    := '::'? Constant ('::' Constant)*
     #     literal := "string" | 'string' | integer | true | false
     #
     # A tree node is an Array: `[:name, "Tuile::Size", [args]]`, `[:optional, node]`,
-    # `[:union, [nodes]]`, `[:literal, value]`, `[:bool]`, `[:nil]` — the same nodes
+    # `[:union, [nodes]]`, `[:literal, value]`, `[:bool]`, `[:nil]`, `[:untyped]` — the same nodes
     # `RBSTypes` builds from the `rbs` gem's AST, so both strategies share one builder.
     #
     # @api private
@@ -102,6 +102,7 @@ module Typemap
         case token
         when "bool" then take && [:bool]
         when "nil" then take && [:nil]
+        when "untyped" then take && [:untyped]
         when "true" then take && [:literal, true]
         when "false" then take && [:literal, false]
         else name

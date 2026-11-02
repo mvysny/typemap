@@ -52,7 +52,8 @@ strings even in `constrain`, not Ruby classes: `type: Integer` leaves open wheth
 allowed, where `'Integer'` and `'Integer?'` say it, and a `T.nilable`-style wrapper would be a
 second type language. Why not RBS's own checker: it needs the whole type environment
 (`R_rbs_parser`), so Typemap checks a small subset itself — `Integer`, `Float`, `String`, `bool`,
-`T?`, `Array[T]`, `Hash[String, T]`, literal unions, mappable classes.
+`T?`, `Array[T]`, `Hash[String, T]`, literal unions, mappable classes, `Object`
+(`D_object_plain_data`).
 
 ## D_constrain_macro — Why a `constrain` macro that records metadata, rather than a constant or an accessor DSL?
 
@@ -133,3 +134,17 @@ class** holds. Why the declaration stays beside the hook: the declared type boun
 function may return and is checked when the class is first read, so a hook cannot smuggle in an
 unchecked object. The cost: strictness inside the hook is the app's; Typemap checks only what
 comes out. A hook is still an extension point, added with its first real use.
+
+## D_object_plain_data — Why does `Object` take only plain data with String keys, not whatever the parser produced?
+
+`Object` passes through a value whose meaning is someone else's — keys sent to a server verbatim,
+another program's table. It is a type, not a hook: it says what the value may be
+(`D_functions_over_rules`). Plain data is what Typemap's other types load — String, Integer,
+Float, bool, Array, Hash, `nil` nested inside — so a new type such as `Time` would widen it. Why
+not whatever the parser gave: `load` and `dump` would part — a Tomlrb `LocalDate` would load,
+then `dump` must reject it or name a gem's class — and `JSON.generate` writes a `Proc` as its
+`to_s`. Why String keys only: converting `1` to `"1"` is coercion; passing `1` through makes
+`dump` format-dependent, and JSON reloads `{1 => "a"}` as `{"1" => "a"}`; it also catches YAML
+1.1's boolean keys, `on:` and `yes:` both read as `true`, one value lost. Why `nil` only as
+`Object?`: as for every type. Why not `untyped` too: sord writes it where it gave up. Why not
+deep-freeze: Typemap freezes no container. The cost: a TOML date-time inside raises.

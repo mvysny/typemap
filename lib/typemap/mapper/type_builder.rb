@@ -19,6 +19,7 @@ module Typemap
         when :literal then literals([node[1]])
         when :bool then Type::Bool.new
         when :nil then unsupported("nil alone")
+        when :untyped then unsupported("untyped; for plain data passed through as the file holds it, write Object")
         when :name then named(node[1], node[2], namespace)
         else raise ArgumentError, "not a type node: #{node.inspect}"
         end
@@ -55,9 +56,9 @@ module Typemap
 
       def self.named(name, args, namespace)
         constant = NameResolver.resolve(name, namespace)
-        if [Integer, Float, String].include?(constant)
+        if [Integer, Float, String, Object].include?(constant)
           unsupported("#{name}[…]") unless args.empty?
-          Type::Scalar.new(klass: constant)
+          constant == Object ? Type::Plain.new : Type::Scalar.new(klass: constant)
         elsif constant == Array
           unsupported("Array without exactly one element type") unless args.size == 1
           Type::ArrayOf.new(element: build(args.first, namespace))

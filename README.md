@@ -150,6 +150,13 @@ The default never supplies one — a default of `65` would otherwise reject `65.
 | `Array[T]` | an Array of `T` | |
 | `Hash[String, T]` | a Hash of `T` | |
 | `Ballooning` | a Hash, loaded into your class | |
+| `Object` | plain data, passed through as the file holds it | a `Time`, a `Proc`, a key that is no String |
+
+That is the whole list: any other type raises `Typemap::DefinitionError` when the mapper first
+reads the class. `Object` is for a value whose meaning is someone else's, such as extra keys an
+app sends to a server verbatim (`Hash[String, Object]`). Typemap checks only that it is plain
+data — a String, Integer, Float, bool, Array or Hash, `nil` nested inside — on `load` and on
+`dump`, and turns every Symbol key into a String.
 
 Types are RBS strings, never Ruby classes: `"Integer"` does not take `nil`, `"Integer?"` does. A
 name resolves the way Ruby resolves it in the code beside it — `"Size"` inside `module App` finds

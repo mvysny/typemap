@@ -115,4 +115,50 @@ RSpec.describe Typemap::Mapper::Type do
       assert_equal "value: key 1 is not a String", error_for("Hash[String, Integer]", { 1 => 1 }, default: {})
     end
   end
+
+  describe "Object" do
+    params = { "kwargs" => { "enable_thinking" => false, "stop" => nil }, "n" => [1, 2.5, "x"] }
+
+    it("passes plain data through") { assert_equal params, load_value("Object", params, default: {}) }
+    it("keeps 5 an Integer") { assert_same 5, load_value("Hash[String, Object]", { "n" => 5 }, default: {})["n"] }
+    it "takes Symbol keys as Strings, all the way down" do
+      assert_equal({ "a" => [{ "b" => 1 }] }, load_value("Object", { a: [{ b: 1 }] }, default: {}))
+    end
+    it "loads new containers" do
+      raw = { "a" => [1] }
+      refute_same raw["a"], load_value("Object", raw, default: {})["a"]
+    end
+    it "rejects a value no type loads, with its path" do
+      assert_equal "value.a[1]: expected plain data (String, Integer, Float, bool, nil, Array or Hash), got :x",
+                   error_for("Object", { "a" => [1, :x] }, default: {})
+    end
+    it "rejects a key neither String nor Symbol" do
+      assert_equal "value.a: key true is not a String", error_for("Object", { "a" => { true => 1 } }, default: {})
+    end
+    it "rejects nil in its own place" do
+      assert_equal "value: expected Object, got nil", error_for("Object", nil, default: 1)
+    end
+    it("takes nil when written Object?") { assert_nil load_value("Object?", nil) }
+    it "checks a Hash[String, Object]'s outer level" do
+      assert_equal "value: expected Hash[String, Object], got 7", error_for("Hash[String, Object]", 7, default: {})
+    end
+    it "rejects a nil value of a Hash[String, Object]" do
+      assert_equal "value.a: expected Object, got nil", error_for("Hash[String, Object]", { "a" => nil }, default: {})
+    end
+    it "rejects a default with a Symbol key" do
+      error = assert_raises(Typemap::DefinitionError) { load_value("Object", {}, default: { a: 1 }) }
+      assert_match(/value: its default .* does not fit Object/, error.message)
+    end
+    it "rejects a Proc on dump" do
+      holder = Holder.of("Hash[String, Object]", {}).new
+      holder.value = { "f" => -> {} }
+      error = assert_raises(Typemap::DataError) { mapper.dump(holder) }
+      assert_match(/\Avalue\.f: expected plain data .*, got #<Proc/, error.message)
+    end
+    it "dumps Symbol keys as Strings" do
+      holder = Holder.of("Object", {}).new
+      holder.value = { a: { b: [nil] } }
+      assert_equal({ "value" => { "a" => { "b" => [nil] } } }, mapper.dump(holder))
+    end
+  end
 end

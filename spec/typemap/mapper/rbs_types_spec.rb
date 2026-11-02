@@ -69,17 +69,26 @@ RSpec.describe Typemap::Mapper::TypeParser, "against the rbs gem's parser" do
   [
     "Integer", "Float", "String", "bool", "Integer?", "Array[String]", "::Array[Integer?]",
     "Hash[String, Integer]", '"short" | "verbose"', '("a" | "b")?', '"a" | "b" | nil', "1 | 2",
-    "Size", "RbsApp::Size", "Array[Size]?", "true | false"
+    "Size", "RbsApp::Size", "Array[Size]?", "true | false", "Object", "::Object?", "Hash[String, Object?]"
   ].each do |source|
     it "builds #{source} the same" do
       assert_equal build.call(rbs.parse_type(source)), build.call(Typemap::Mapper::TypeParser.parse(source))
     end
   end
 
-  ["Set[String]", "Hash[Integer, String]", "Integer | String", "nil", "untyped"].each do |source|
+  [
+    "Set[String]", "Hash[Integer, String]", "Hash[Object, Object]", "Integer | String", "nil", "untyped"
+  ].each do |source|
     it "rejects #{source} in both" do
       assert_raises(Typemap::DefinitionError) { build.call(rbs.parse_type(source)) }
       assert_raises(Typemap::DefinitionError) { build.call(Typemap::Mapper::TypeParser.parse(source)) }
+    end
+  end
+
+  it "points untyped at Object, in both" do
+    [rbs.parse_type("untyped"), Typemap::Mapper::TypeParser.parse("untyped")].each do |tree|
+      error = assert_raises(Typemap::DefinitionError) { build.call(tree) }
+      assert_match(/unsupported type: untyped; .*write Object/, error.message)
     end
   end
 end
