@@ -176,9 +176,9 @@ module Typemap
       #
       # The name is worked out only when an entry's error passes through, so a load that succeeds
       # never calls `entry_name`. `raw` is always plain data with String keys: on load the file's
-      # Hash, on validation and dump the entry dumped by {Mapper#entry_hash}. No name, just the
-      # index, when `entry_name` returns anything but a non-empty String; when it raises, a
-      # warning says why, and the error the user needs is raised unnamed.
+      # Hash, on validation and dump the entry dumped by {Mapper#entry_hash}. The name is the
+      # result's `to_s.strip`; no name, just the index, when that is empty — `nil` or `"  "`. When
+      # `entry_name` raises, a warning says why, and the error the user needs is raised unnamed.
       #
       # @!attribute [r] element
       #   @return [Object] the elements' type
@@ -247,8 +247,8 @@ module Typemap
                 when Hash then item.transform_keys(&:to_s)
                 when ref.klass then mapper.entry_hash(item)
                 end
-          name = raw && ref.klass.entry_name(raw)
-          name if name.is_a?(String) && !name.empty?
+          name = raw && ref.klass.entry_name(raw).to_s.strip
+          name unless name.nil? || name.empty?
         rescue StandardError => e
           warn "Typemap: #{at} left unnamed, #{ref.klass}.entry_name: #{e.class}: #{e.message}"
           nil

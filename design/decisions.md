@@ -158,7 +158,7 @@ Why not `to_s`: the app's logs or UI already own it, and it needs an instance, w
 conversion error never has — hence a class method. Why `raw` is always plain data with String
 keys, the file's Hash on load and the entry dumped afterwards: a function given sometimes a
 Hash and sometimes the object is a bug waiting to happen. Why the index stays: two entries may
-share a name; uniqueness is the app's check. Why only arrays: a Hash entry's path already
+share a name; uniqueness is the app's check. Why `to_s.strip` on the result: every app wrote it. Why only arrays: a Hash entry's path already
 carries its key. Why the name is printed whole: it shows only when a load fails. Why
 `entry_name` unprefixed: a mapped class is a data carrier, and `constrain` and `validate` carry
 no prefix either. The cost: a raising `entry_name` only warns, so the original error survives.

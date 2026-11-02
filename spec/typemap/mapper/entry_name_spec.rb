@@ -128,11 +128,24 @@ RSpec.describe Typemap::Mapper, "naming an array entry" do
       assert_equal "servers[0] #{name.inspect}.url: required", error.message
     end
 
+    it "names an entry by the to_s of whatever entry_name gives" do
+      assert_equal 'servers[0] "7".id: expected String, got Integer 7',
+                   load_error(EntryNameSpec::Config, { "servers" => [{ "id" => 7, "url" => "u" }] }).message
+    end
+
+    it "strips the name" do
+      assert_equal 'servers[0] "grok".url: required',
+                   load_error(EntryNameSpec::Config, { "servers" => [{ "id" => " grok\t" }] }).message
+    end
+
+    it "leaves the bare index for a blank name" do
+      assert_equal "servers[0].url: required",
+                   load_error(EntryNameSpec::Config, { "servers" => [{ "id" => " \n" }] }).message
+    end
+
     it "leaves the bare index when the entry is no Hash, or entry_name gives nothing" do
       assert_equal "servers[0]: expected Server, got Integer 1",
                    load_error(EntryNameSpec::Config, { "servers" => [1] }).message
-      assert_equal "servers[0].id: expected String, got Integer 7",
-                   load_error(EntryNameSpec::Config, { "servers" => [{ "id" => 7, "url" => "u" }] }).message
       assert_equal "unnamed[0].x: unknown key; Unnamed has id",
                    load_error(EntryNameSpec::Config, { "unnamed" => [{ "x" => 1 }] }).message
       assert_equal "plain[0].id: expected Integer, got String \"x\"",

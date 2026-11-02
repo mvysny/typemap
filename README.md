@@ -179,8 +179,9 @@ server[1] "grok".url: required
 - **`raw` is the entry as a file would hold it**: a Hash with String keys, its values not yet
   checked. Once the entry is built, for a later check or a `dump`, it is the entry dumped, defaults
   included.
-- **No name, just the index**, when `entry_name` returns `nil`, an empty String or anything not
-  a String. When it raises, Typemap warns and raises the original error unnamed.
+- **The name is the result's `to_s`, stripped**: an Integer id names the entry too, and
+  `" grok "` prints as `"grok"`. **No name, just the index**, when that comes out empty — `nil`,
+  `""`, `"  "`. When `entry_name` raises, Typemap warns and raises the original error unnamed.
 
 ## Types
 
