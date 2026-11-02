@@ -52,6 +52,7 @@ Every fact lives in exactly one of these; the others link to it.
 - **Ruby 3.3+, no Rails, no runtime dependencies.** Plain classes, `Data.define` for value objects; `require_relative` inside `lib/`, no Zeitwerk.
 - **Tests: rspec-core with minitest-style asserts.** `describe` / `it`, but `assert_equal` / `refute`; no rspec-mocks.
 - **`# frozen_string_literal: true`** atop every Ruby file; double-quoted strings, as rubocop enforces.
+- **The README documents every user-facing API, in the change that adds or alters it**: each `constrain` option with an example and its error message, `ignore`, `load` / `dump` and their keywords, `entry_name`, `validate`, the type strategies, the errors. `constrain` gets the most care: it is what every user writes.
 - **YARD on every public module, class and method**, concrete types in every tag, `@raise` for expected exceptions.
 - **Errors are loud.** Unexpected input or state raises with the offending value and its path; never a silent default.
 - **Composition over inheritance.** Shared mechanics become a concrete helper taking keyword parameters, not a base class.
