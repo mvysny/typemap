@@ -55,6 +55,18 @@ second type language. Why not RBS's own checker: it needs the whole type environ
 `T?`, `Array[T]`, `Hash[String, T]`, literal unions, mappable classes, `Object`
 (`D_object_plain_data`).
 
+## D_rbs_gem_parser — Why read `sig/` through the `rbs` gem's parser rather than a reader of our own?
+
+A reader of our own would drop the gem's load time (`R_rbs_load`), so one was built, about 270
+lines, and diffed against rbs's parser: over 1,450 sig files and 17,386 readers it agreed on
+every class, reader and type. It lost on speed: Ruby tokenizing is ~3× slower than rbs's C
+(pikuri-tui's 289 KB sig, ~90 ms against ~25), so it beats the full `require "rbs"` but not the
+parser loaded alone, ~75 ms all told. And its traps show only in that diff: type variables read
+as class names, `class` is also a type, `def x: -> T` has no parens, and a token running past a
+line end silently lost a thousand lines of `kernel.rbs`; rbs would stay a test dependency anyway.
+Why not load the parser alone, then: it saves ~110 ms of pikuri-tui's ~1.2 s boot, for a file
+list that is rbs's internals (`R_rbs_load`) — worth it once a consumer feels the boot.
+
 ## D_constrain_macro — Why a `constrain` macro that records metadata, rather than a constant or an accessor DSL?
 
 `extend Typemap::Constrain` gives the class `constrain :name, type: …, in: …, format: …` and

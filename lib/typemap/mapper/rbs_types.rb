@@ -9,7 +9,7 @@ module Typemap
     # for one they do — a type declared twice drifts (`D_types_declared`).
     #
     # Needs the `rbs` gem, the app's dependency and never Typemap's; only its parser is used,
-    # not its type environment (`R_rbs_parser`).
+    # not its type environment (`R_rbs_parser`), and not a reader of our own (`D_rbs_gem_parser`).
     class RBSTypes
       # @param sig [Array<String>, nil] the `.rbs` files, or directories searched for them; `nil`
       #   finds the `sig/` directory beside each class's own source, walking up from its file

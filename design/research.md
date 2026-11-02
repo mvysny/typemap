@@ -29,13 +29,24 @@ cut the fat — a marker already says where a claim came from.
 
 - `RBS::Parser.parse_signature(buffer)` parses a `.rbs` file on its own, returning
   `[buffer, directives, decls]`; `RBS::Parser.parse_type("Integer?")` parses one type.
-  **[verified 2026-11-01, rbs 4.2.0]**
+  **[verified 2026-11-02, rbs 3.4.0 (bundled with Ruby 3.3) and 4.2.0]**
 - tuile's 870 KB `sig/tuile.rbs` parses in about 58 ms. **[verified 2026-11-01, rbs 4.2.0]**
 - `RBS::Test::TypeCheck#value(val, type)` checks a value, but its constructor wants a
   `DefinitionBuilder` — the whole environment, core signatures included. **[src]**
 - The inline parser (RBS 4.0+, `#:` comments, marked experimental) sees
   `Ballooning = Data.define(…)` as a constant, not a class with attributes. **[src]**
-- Whether rbs 3.4, bundled with Ruby 3.3, has the same `parse_signature`. **[unverified]**
+
+## R_rbs_load — rbs: what `require "rbs"` costs, and loading only the parser
+
+- `require "rbs"` takes about 255 ms, most of it `rbs/collection` (~87 ms) and `prism` (~65 ms);
+  parsing needs neither. **[verified 2026-11-02, rbs 4.2.0]**
+- The parser loads alone in about 45 ms, without prism: `rbs/version`, `errors`, `buffer`,
+  `namespace`, `type_name`, `types`, `method_type`, `ast/{type_param,directives,declarations,
+  members,annotation,comment}`, then `rbs_extension`, `parser_aux`, `location_aux`.
+  **[verified 2026-11-02, rbs 3.4.0 and 4.2.0]**
+- rbs 4.2's extension looks up `RBS::AST::Ruby` when loaded, so it also needs `rbs/ast/ruby/*`,
+  which 3.4 lacks: the list is rbs's internals and moves between versions.
+  **[verified 2026-11-02, rbs 3.4.0 and 4.2.0]**
 
 ## R_ruby_reflection — Ruby: method order, source locations, constants in blocks
 
