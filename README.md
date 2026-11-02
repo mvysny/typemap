@@ -44,6 +44,11 @@ rasie: unknown key; Ballooning has raise_at_percent, shrink_at_percent, pinned_v
 raise_at_percent must be above shrink_at_percent
 ```
 
+> **Always pass `source:` when the Hash came from a file.** The messages above speak TOML because
+> the load says `source: :toml`. Leave it out and the default, `:ruby`, words them for a Hash
+> built in code — `got Integer 7`, `wrap it in an array` — which tells a user editing a file
+> nothing about what to type. See [Naming the source](#naming-the-source).
+
 ## Loading and saving
 
 ```ruby
@@ -56,17 +61,6 @@ File.write(path, JSON.pretty_generate(mapper.dump(state)))            # String k
 
 - **A key present replaces the default; a key absent keeps it.** A nested Hash loads onto the
   default's nested object, so a file that sets one nested key keeps the other nested defaults.
-- **`source:` words an error for where the Hash came from**: `:toml`, `:json`, `:yaml`, or
-  `:ruby`, the default, for a Hash built in code. The mistake is the same in every source; the
-  fix is spelled in its syntax:
-
-  | `source:` | `[server]` where an array belongs | `7` where a String belongs |
-  |---|---|---|
-  | `:ruby` | `wrap it in an array` | `got Integer 7` |
-  | `:toml` | `write [[server]], not [server], or server = [{…}]` | `got 7; quote it to make it a string` |
-  | `:json` | `wrap it in [ ]` | `got 7; quote it to make it a string` |
-  | `:yaml` | `put "- " before it` | `got 7; quote it to make it a string` |
-
 - **An unknown key raises**, unless `unknown: :ignore`.
 - **Keys may be Strings or Symbols** (`JSON.load_file(path, symbolize_names: true)` works).
 - **`dump` writes properties in declaration order** and checks every value as `load` would — its
@@ -76,6 +70,22 @@ File.write(path, JSON.pretty_generate(mapper.dump(state)))            # String k
   nested object must pass its limits and `validate` too.
 - **The first problem raises.** Typemap does not collect every error.
 - **A mapper is safe to share between threads**; it works out each class once and remembers it.
+
+### Naming the source
+
+`load`'s `source:` names where the Hash came from — `:toml`, `:json`, `:yaml`, or `:ruby`, the
+default, for a Hash built in code — and a load error words its fix in that syntax. The mistake is
+the same in every source; only the advice changes:
+
+| `source:` | `[server]` where an array belongs | `7` where a String belongs |
+|---|---|---|
+| `:ruby` (default) | `wrap it in an array` | `got Integer 7` |
+| `:toml` | `write [[server]], not [server], or server = [{…}]` | `got 7; quote it to make it a string` |
+| `:json` | `wrap it in [ ]` | `got 7; quote it to make it a string` |
+| `:yaml` | `put "- " before it` | `got 7; quote it to make it a string` |
+
+The default is `:ruby` because Typemap does not know where your Hash came from; when it came
+from a file, say so, or the user who edits that file reads Ruby class names instead of the fix.
 
 ## Your class
 
