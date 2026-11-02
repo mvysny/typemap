@@ -37,6 +37,8 @@ doc-comment content has crept in.
 3. Per other key present: `Type#load` checks it strictly — a `ClassRef` recurses with the base's nested object as the nested base.
 4. The shape builds the object from the base plus the loaded values, never changing the base.
 
+Then freezing, over the whole result: `Mapper#freeze_object` reaches every object through `Type#each_object`, and its shape's `freeze_value` freezes each property's Arrays, Hashes and Strings in place — a `DataShape` does, an `AccessorShape` does nothing (`D_frozen_containers`).
+
 Then validation, over the whole result, so an object the file left out is checked too: `Mapper#validate_object` reaches every object through `Type#each_object` and checks the nested ones first; per object the limits, a `required:` still `nil`, then the object's `validate`, its message gaining the object's path.
 
 **Dumping** — conversion walks the same plan through the getters, each `Type#dump` checking the type as it goes; then the same validation, so a Hash comes back only if a later `load` would take it.

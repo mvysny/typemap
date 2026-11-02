@@ -50,6 +50,12 @@ module Typemap
       # @return [Object] the property's value
       def self.read(object, name) = object.public_send(name)
 
+      # Leaves a property's value mutable, as the class is (`D_frozen_containers`).
+      #
+      # @param _value [Object]
+      # @return [void]
+      def self.freeze_value(_value) = nil
+
       # A fresh bare `new`, then a setter for every property: `base`'s value, or the loaded one.
       # `base` itself is never changed — it may be a default shared beyond this load.
       #

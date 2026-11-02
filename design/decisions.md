@@ -158,8 +158,22 @@ then `dump` must reject it or name a gem's class — and `JSON.generate` writes 
 `to_s`. Why String keys only: converting `1` to `"1"` is coercion; passing `1` through makes
 `dump` format-dependent, and JSON reloads `{1 => "a"}` as `{"1" => "a"}`; it also catches YAML
 1.1's boolean keys, `on:` and `yes:` both read as `true`, one value lost. Why `nil` only as
-`Object?`: as for every type. Why not `untyped` too: sord writes it where it gave up. Why not
-deep-freeze: Typemap freezes no container. The cost: a TOML date-time inside raises.
+`Object?`: as for every type. Why not `untyped` too: sord writes it where it gave up. Why frozen inside a data class:
+`D_frozen_containers`. The cost: a TOML date-time inside raises.
+
+## D_frozen_containers — Why does `load` freeze what a data object holds, in place, rather than leave it or copy it?
+
+A `Data` instance is frozen one level down: `config.engines << "x"` still changed a config, and
+apps froze each member in an `initialize` override of their own. So after the load, one pass
+freezes every Array, Hash and String a data object holds, defaults included — else a key left out
+stays mutable and `<<` fails only once a user sets it. An accessor object freezes nothing, being
+mutable by design. Why no keyword, nor a `source:` switch: the class already says which it is,
+and a `:ruby` test must see what a `:toml` load gets. Why in place: a nested default object is
+frozen where it stands, while a copy means rebuilding it, rerunning its `initialize`. The input's
+containers are never held, Typemap building its own; its Strings are, and get frozen — a parsed
+file is dropped, a new app's literals are frozen already. Why not `Ractor.make_shareable`: it
+reaches `ignore`d values, froze a held `$stderr` and raised on a Proc. The cost: a default naming
+a constant freezes it.
 
 ## D_entry_name — Why does an array entry get its name from a class method taking a Hash?
 

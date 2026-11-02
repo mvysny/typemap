@@ -51,6 +51,9 @@ module Typemap
     # Builds an instance of `klass` from `hash`: each key present replaces the default, each key
     # absent keeps it; a nested Hash loads onto the default's nested object. Then validates it.
     #
+    # Every Array, Hash and String a data object holds comes back frozen, defaults included, and
+    # a String from `hash` is frozen in place; an accessor object's values stay mutable.
+    #
     # @param klass [Class] a data class or an accessor class
     # @param hash [Hash{String, Symbol => Object}] the parsed file
     # @param source [Symbol] where `hash` came from, so an error words its fix that way: `:toml`
@@ -69,6 +72,7 @@ module Typemap
 
       session = Session.new(mapper: self, unknown: unknown, wording: Wording.for(source), parents: [])
       object = session.load_object(klass, hash, "", nil)
+      freeze_object(object)
       validate_object(object, "")
       object
     end
@@ -159,6 +163,18 @@ module Typemap
     end
 
     private
+
+    # Freezes, in place, what each data object in the tree holds, through its shape; an accessor
+    # object freezes nothing but is walked, for a data object nested below. Only mapped properties
+    # are reached, so an `ignore`d Logger or Proc never is.
+    def freeze_object(object)
+      plan = plan_for(object.class)
+      plan.properties.each do |property|
+        value = plan.shape.read(object, property.name)
+        plan.shape.freeze_value(value)
+        property.type.each_object(value, self, "") { |nested, _path| freeze_object(nested) }
+      end
+    end
 
     def check_values(values, path)
       values.each do |property, value|

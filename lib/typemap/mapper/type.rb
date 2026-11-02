@@ -403,6 +403,26 @@ module Typemap
         end
       end
 
+      # Freezes `value` in place when it is an Array, a Hash or a String, then each item, key and
+      # value inside; anything else is left as is, a data instance being frozen already and an
+      # accessor instance mutable by design. Freezes a String the caller passed in, too
+      # (`D_frozen_containers`).
+      #
+      # @param value [Object]
+      # @return [void]
+      def self.deep_freeze(value)
+        case value
+        when Array then value.freeze.each { |item| deep_freeze(item) }
+        when Hash
+          value.freeze.each do |key, item|
+            deep_freeze(key)
+            deep_freeze(item)
+          end
+        when String then value.freeze
+        end
+        nil
+      end
+
       # @param value [Object]
       # @return [Boolean] whether `value` is plain data with String keys, as a default must be
       def self.plain?(value)

@@ -68,6 +68,12 @@ File.write(path, JSON.pretty_generate(mapper.dump(state)))            # String k
   an object is caught before it reaches the file.
 - **Every object in the result is validated**, the ones the file left out included: a default
   nested object must pass its limits and `validate` too.
+- **A data class comes back frozen all the way down.** Every Array, Hash and String it holds is
+  frozen, defaults included, so `config.engines << "x"` raises `FrozenError`; mutate a copy,
+  `config.engines.dup`. An accessor class's values stay mutable, being meant to change.
+  Typemap freezes in place: a String from your Hash that a data object ends up holding is frozen
+  there too, and so is a constant a default names (`engines: DEFAULT_ENGINES`). Your Arrays and
+  Hashes never are; the result holds Typemap's own.
 - **The first problem raises.** Typemap does not collect every error.
 - **A mapper is safe to share between threads**; it works out each class once and remembers it.
 

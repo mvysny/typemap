@@ -4,6 +4,7 @@
 ## [Unreleased]
 
 - Add `Typemap::Mapper#load` and `#dump` — a Hash onto a data class or an accessor class and back, strict types, then the whole result validated — limits, required keys, the class's own `validate`, nested objects first — the first problem raised as a `Typemap::DataError` carrying the value's path.
+- Add frozen data-class results: after `load`, every Array, Hash and String a data object holds is frozen in place, defaults and the caller's Strings included, so `config.engines << "x"` raises; an accessor class's values stay mutable.
 - Add a suggestion for a misspelled key, `rasie_at_percent: unknown key, did you mean raise_at_percent?`, and limits in words, `must be at least 1, got 0` rather than `0 is not in 1..`.
 - Add the fix to a load error for a classic mistake, spelled for `load`'s `source:` — `:toml`'s `write [[server]], not [server]`, `:json`'s `wrap it in [ ]`, `:yaml`, and `:ruby`, the default, naming the found value's class, `got Integer 70` — and name a class without its namespace there, `expected Array[Server]`.
 - Add an array entry's name to an error path: a class method `entry_name(raw)`, given the entry as a Hash with String keys, turns `server[1].url: required` into `server[1] "grok".url: required`; its result is taken as `to_s.strip`, a blank one leaving the bare index.

@@ -58,6 +58,13 @@ module Typemap
       # @return [Object] the property's value
       def self.read(object, name) = object.public_send(name)
 
+      # Freezes a property's value in place, Arrays, Hashes and Strings all the way down: the
+      # instance is frozen, so what it holds is too (`D_frozen_containers`).
+      #
+      # @param value [Object]
+      # @return [void]
+      def self.freeze_value(value) = Type.deep_freeze(value)
+
       # @param klass [Class]
       # @param base [Data] supplies every value `loaded` does not
       # @param loaded [Hash{Symbol => Object}] the values read from the file
