@@ -66,7 +66,11 @@ All of them run only on a value that has already failed, so a good load costs no
 - **A key one level too deep**: `reject_unknown` sees only its own plan today. The session
   carries the chain of ancestors' plans and paths down, and an unknown key that the nearest
   ancestor has exactly gets the hint. An exact ancestor match beats `DidYouMean`'s guesses;
-  without one, the spell-checker's message stays as it is.
+  without one, the spell-checker's message stays as it is. Ancestors only, never siblings or the
+  rest of the tree: the chain is one path and either has the key or doesn't, while a search
+  across the tree guesses and misses. For a key in the wrong sibling (`sandbox` under `[ui]`,
+  meant for `[code]`), today's `unknown key; Ui has theme, font` already tells the reader it's
+  not `ui`'s, and they know where it goes.
 - **Quote it**: a String scalar, a `String?`, or a literal union of Strings (`"yes" | "no"`,
   where YAML's `no` hurts most) meeting an Integer, Float, `true`/`false`, `Time` or `Date`.
   The message shows the parser's value, `got 1.1` where the file says `1.10`: Typemap never
@@ -121,9 +125,3 @@ To reopen if "wrap it in an array" proves not enough:
   rather than TOML's `[[x]]`?*, covering the Hash's-not-the-format's argument, parser
   knowledge, the bet, and why the hint is in `detail` and not a field.
 - CHANGELOG: load messages change wording; `detail`'s text is not an API, so no `**Breaking:**`.
-
-## Open questions
-
-- `Q_misplaced_key_reach`: also look at sibling tables (`[ui]` holding `sandbox`, which
-  belongs in `[code]`)? That's a did-you-mean across the whole tree: useful, and noisy when it
-  guesses wrong. Ancestors only to start with, the mechanical case.
