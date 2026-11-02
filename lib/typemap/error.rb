@@ -8,6 +8,10 @@ module Typemap
   # The data does not fit the class: a value of the wrong type or outside its limits, an unknown
   # key, a required key missing, a failed `validate`. The file's author fixes it; the message starts with the path of
   # the offending value, `ballooning.raise_at_percent: expected Integer, got "70"`.
+  #
+  # A type is named as RBS spells it, `expected Config::Ballooning`, never by a format's word for a
+  # Hash — TOML's "table", JSON's "object" mean something only to that format's users. No line
+  # number: the parsers keep none in the Hash they return, so the path stands in.
   class DataError < Error
     # @return [String] the dotted path of the offending value, `""` for the root object
     attr_reader :path

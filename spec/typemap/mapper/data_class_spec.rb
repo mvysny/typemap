@@ -22,6 +22,15 @@ module DataClassSpec
 
     def initialize(ballooning: Ballooning.new(raise_at_percent: 80), name: nil) = super
   end
+
+  # Two keys close enough that a typo matches both; `raise_at` required.
+  class Twins < Data.define(:raise_at, :raise_by)
+    extend Typemap::Constrain
+
+    constrain :raise_at, :raise_by, type: "Integer"
+
+    def initialize(raise_at:, raise_by: 1) = super
+  end
 end
 
 RSpec.describe Typemap::Mapper, "with a data class" do
@@ -46,7 +55,23 @@ RSpec.describe Typemap::Mapper, "with a data class" do
     it "raises on an unknown key, with its path" do
       error = assert_raises(Typemap::DataError) { mapper.load(DataClassSpec::Config, { "ballooning" => { "rasie" => 1 } }) }
       assert_equal "ballooning.rasie", error.path
-      assert_match(/unknown key; DataClassSpec::Ballooning has raise_at_percent/, error.message)
+      assert_equal "ballooning.rasie: unknown key; DataClassSpec::Ballooning has raise_at_percent, " \
+                   "shrink_at_percent, pinned_vms", error.message
+    end
+
+    it "suggests the key a misspelled one meant" do
+      error = assert_raises(Typemap::DataError) { mapper.load(DataClassSpec::Ballooning, { "rasie_at_percent" => 1 }) }
+      assert_equal "rasie_at_percent: unknown key, did you mean raise_at_percent?", error.message
+    end
+
+    it "suggests every close key" do
+      error = assert_raises(Typemap::DataError) { mapper.load(DataClassSpec::Twins, { "raise_at" => 1, "raise_bt" => 1 }) }
+      assert_equal "raise_bt: unknown key, did you mean raise_by or raise_at?", error.message
+    end
+
+    it "reports a misspelled required key as unknown, not as missing" do
+      error = assert_raises(Typemap::DataError) { mapper.load(DataClassSpec::Twins, { "raise_bt" => 1, "raise_by" => 2 }) }
+      assert_equal "raise_bt: unknown key, did you mean raise_by or raise_at?", error.message
     end
 
     it "ignores an unknown key when told to" do
@@ -56,7 +81,7 @@ RSpec.describe Typemap::Mapper, "with a data class" do
 
     it "rejects a value outside its limits" do
       error = assert_raises(Typemap::DataError) { mapper.load(DataClassSpec::Ballooning, { "raise_at_percent" => 170 }) }
-      assert_equal "raise_at_percent: 170 is not in 1..100", error.message
+      assert_equal "raise_at_percent: must be 1 to 100, got 170", error.message
     end
 
     it "calls validate, prefixing its message with the object's path" do
@@ -67,12 +92,12 @@ RSpec.describe Typemap::Mapper, "with a data class" do
       assert_kind_of RuntimeError, error.cause
     end
 
-    it "raises when the root is not a table" do
+    it "raises when the root is not a Hash" do
       error = assert_raises(Typemap::DataError) { mapper.load(DataClassSpec::Ballooning, [1]) }
-      assert_equal "expected a table of DataClassSpec::Ballooning's properties, got [1]", error.message
+      assert_equal "expected DataClassSpec::Ballooning, got [1]", error.message
     end
 
-    it "raises when a nested value is not a table" do
+    it "raises when a nested value is not a Hash" do
       error = assert_raises(Typemap::DataError) { mapper.load(DataClassSpec::Config, { "ballooning" => 5 }) }
       assert_equal "ballooning: expected DataClassSpec::Ballooning, got 5", error.message
     end

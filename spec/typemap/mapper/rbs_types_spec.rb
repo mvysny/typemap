@@ -20,7 +20,7 @@ RSpec.describe Typemap::Mapper::RBSTypes do
 
   it "keeps constrain's limits on a type from the signature" do
     error = assert_raises(Typemap::DataError) { mapper.load(RbsApp::Ballooning, { "raise_at_percent" => 0 }) }
-    assert_equal "raise_at_percent: 0 is not in 1..100", error.message
+    assert_equal "raise_at_percent: must be 1 to 100, got 0", error.message
   end
 
   it "rejects a value the signature's type rejects" do

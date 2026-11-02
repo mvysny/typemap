@@ -35,8 +35,9 @@ A file that does not fit raises `Typemap::DataError`, with the path of the offen
 
 ```
 raise_at_percent: expected Integer, got "70"
-raise_at_percent: 170 is not in 1..100
+raise_at_percent: must be 1 to 100, got 170
 pinned_vms[1]: expected String, got 7
+rasie_at_percent: unknown key, did you mean raise_at_percent?
 rasie: unknown key; Ballooning has raise_at_percent, shrink_at_percent, pinned_vms
 raise_at_percent must be above shrink_at_percent
 ```
@@ -51,7 +52,7 @@ state  = mapper.load(State, JSON.load_file(path), unknown: :ignore)   # drop key
 File.write(path, JSON.pretty_generate(mapper.dump(state)))            # String keys, nested objects as Hashes
 ```
 
-- **A key present replaces the default; a key absent keeps it.** A nested table loads onto the
+- **A key present replaces the default; a key absent keeps it.** A nested Hash loads onto the
   default's nested object, so a file that sets one nested key keeps the other nested defaults.
 - **An unknown key raises**, unless `unknown: :ignore`.
 - **Keys may be Strings or Symbols** (`JSON.load_file(path, symbolize_names: true)` works).
@@ -147,8 +148,8 @@ The default never supplies one — a default of `65` would otherwise reject `65.
 | `T?` | `nil`, or a `T` | |
 | `"short" \| "verbose"` | one of the literals | anything else; `1 \| 2` rejects `1.0` |
 | `Array[T]` | an Array of `T` | |
-| `Hash[String, T]` | a table of `T` | |
-| `Ballooning` | a table, loaded into your class | |
+| `Hash[String, T]` | a Hash of `T` | |
+| `Ballooning` | a Hash, loaded into your class | |
 
 Types are RBS strings, never Ruby classes: `"Integer"` does not take `nil`, `"Integer?"` does. A
 name resolves the way Ruby resolves it in the code beside it — `"Size"` inside `module App` finds
@@ -165,6 +166,10 @@ constrain :name, type: "String", format: /\A[a-z]+\z/       # a pattern, for a S
 
 Parenthesize an endless range at the end of a line: `in: 1..` followed by a newline makes Ruby
 read the next line as the range's end.
+
+A miss reads `must be 1 to 100, got 170`, `must be at least 1, got 0`. A `format:` miss prints the
+pattern, which the person editing the file may not read; for a message in your own words, raise
+it from `validate` instead.
 
 ## Problems in the class itself
 

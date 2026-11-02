@@ -22,7 +22,7 @@ RSpec.describe Typemap::Mapper::Type do
       assert_equal "value: expected Integer, got Infinity", error_for("Integer", Float::INFINITY, default: 1)
     }
     it("limits 70.0 as 70") {
-      assert_equal "value: 70 is not in 1..3", error_for("Integer", 70.0, default: 1, in: 1..3)
+      assert_equal "value: must be 1 to 3, got 70", error_for("Integer", 70.0, default: 1, in: 1..3)
     }
     it("rejects nil") { assert_equal "value: expected Integer, got nil", error_for("Integer", nil, default: 1) }
     it("keeps a default strict") {
@@ -55,8 +55,21 @@ RSpec.describe Typemap::Mapper::Type do
                    error_for("String", "ab", default: "a", format: /\A[a-z]\z/)
     end
     it "checks in: as a list" do
-      assert_equal 'value: "c" is not one of ["a", "b"]', error_for("String", "c", default: "a", in: %w[a b])
+      assert_equal 'value: must be one of "a", "b", got "c"', error_for("String", "c", default: "a", in: %w[a b])
     end
+  end
+
+  describe "in: as a range, in words" do
+    it("1..3") { assert_equal "value: must be 1 to 3, got 4", error_for("Integer", 4, default: 1, in: 1..3) }
+    it("1..") { assert_equal "value: must be at least 1, got 0", error_for("Integer", 0, default: 1, in: 1..) }
+    it("..3") { assert_equal "value: must be at most 3, got 4", error_for("Integer", 4, default: 1, in: ..3) }
+    it("...3") { assert_equal "value: must be below 3, got 3", error_for("Integer", 3, default: 1, in: ...3) }
+    it("1...3") {
+      assert_equal "value: must be at least 1 and below 3, got 3", error_for("Integer", 3, default: 1, in: 1...3)
+    }
+    it("0.0..1.0") {
+      assert_equal "value: must be 0.0 to 1.0, got 1.5", error_for("Float", 1.5, default: 0.5, in: 0.0..1.0)
+    }
   end
 
   describe "bool" do
@@ -68,7 +81,7 @@ RSpec.describe Typemap::Mapper::Type do
     it("takes nil") { assert_nil load_value("Integer?", nil, default: 1) }
     it("takes a T") { assert_equal 2, load_value("Integer?", 2) }
     it("never limits nil") { assert_nil load_value("Integer?", nil, in: 1..3) }
-    it("still limits a T") { assert_equal "value: 5 is not in 1..3", error_for("Integer?", 5, in: 1..3) }
+    it("still limits a T") { assert_equal "value: must be 1 to 3, got 5", error_for("Integer?", 5, in: 1..3) }
   end
 
   describe "literal unions" do

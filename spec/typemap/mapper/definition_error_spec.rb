@@ -114,7 +114,7 @@ RSpec.describe Typemap::Mapper, "reading a class it cannot map" do
   end
 
   it "raises on a default outside the limits" do
-    assert_match(/value: its default 0 is not in 1..3/, error_for(holder("Integer", 0, in: 1..3)))
+    assert_match(/value: its default must be 1 to 3, got 0/, error_for(holder("Integer", 0, in: 1..3)))
   end
 
   it "raises on a limit the type cannot take" do

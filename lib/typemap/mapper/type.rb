@@ -127,7 +127,7 @@ module Typemap
         def to_s = "Array[#{element}]"
       end
 
-      # `Hash[String, T]`: a table with String keys (a Symbol key is taken as its String) and a
+      # `Hash[String, T]`: a Hash with String keys (a Symbol key is taken as its String) and a
       # `T` under each.
       #
       # @!attribute [r] value
@@ -152,7 +152,7 @@ module Typemap
         def to_s = "Hash[String, #{value}]"
       end
 
-      # A class of the app's own — a data class or an accessor class — loaded from a table by
+      # A class of the app's own — a data class or an accessor class — loaded from a Hash by
       # the mapper, recursively.
       #
       # @!attribute [r] klass
@@ -193,7 +193,7 @@ module Typemap
         end
       end
 
-      # A table's keys as Strings, a Symbol key taken as its String.
+      # A Hash's keys as Strings, a Symbol key taken as its String.
       #
       # @param hash [Hash]
       # @param path [String]

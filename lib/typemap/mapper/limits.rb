@@ -35,6 +35,12 @@ module Typemap
         raise DefinitionError, "format: #{format.inspect} limits only a String, not #{type}"
       end
 
+      # Raises in words a person editing the file reads, not Ruby's `1..`:
+      #
+      #     must be 1 to 100, got 170                  # in: 1..100
+      #     must be at least 1 and below 10, got 10    # in: 1...10
+      #     must be one of "short", "verbose", got "x" # in: %w[short verbose]
+      #
       # @param value [Object] a value that has already passed the type
       # @param path [String]
       # @return [void]
@@ -44,14 +50,29 @@ module Typemap
 
         allowed = self.in
         if allowed.is_a?(Range) && !allowed.cover?(value)
-          raise DataError.new(path, "#{value.inspect} is not in #{allowed.inspect}")
+          raise DataError.new(path, "must be #{Limits.range_words(allowed)}, got #{value.inspect}")
         end
         if allowed.is_a?(Array) && !allowed.include?(value)
-          raise DataError.new(path, "#{value.inspect} is not one of #{allowed.inspect}")
+          raise DataError.new(path, "must be one of #{allowed.map(&:inspect).join(", ")}, got #{value.inspect}")
         end
         return unless format && !format.match?(value)
 
         raise DataError.new(path, "#{value.inspect} does not match #{format.inspect}")
+      end
+
+      # @param range [Range] a numeric range; an endless or beginless one too
+      # @return [String] `1 to 100`, `at least 1`, `at most 100`, `below 10`, `at least 1 and below 10`
+      def self.range_words(range)
+        from = range.begin&.inspect
+        to = range.end&.inspect
+        upper = range.exclude_end? ? "below #{to}" : "at most #{to}"
+        if from && to
+          range.exclude_end? ? "at least #{from} and #{upper}" : "#{from} to #{to}"
+        elsif from
+          "at least #{from}"
+        else
+          upper
+        end
       end
 
       private

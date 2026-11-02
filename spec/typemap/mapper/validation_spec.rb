@@ -57,7 +57,7 @@ RSpec.describe Typemap::Mapper, "validating the result" do
       error = assert_raises(Typemap::DataError) do
         mapper.load(ValidationSpec::Ranges, { "named" => { "a" => nil, "b" => { "high" => 101 } } })
       end
-      assert_equal "named.b.high: 101 is not in 0..100", error.message
+      assert_equal "named.b.high: must be 0 to 100, got 101", error.message
     end
 
     it "validates nested objects first" do
@@ -71,7 +71,7 @@ RSpec.describe Typemap::Mapper, "validating the result" do
   describe "#dump" do
     it "raises on a value outside its limits" do
       error = assert_raises(Typemap::DataError) { mapper.dump(range(0, 170)) }
-      assert_equal "high: 170 is not in 0..100", error.message
+      assert_equal "high: must be 0 to 100, got 170", error.message
     end
 
     it "calls validate" do

@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "did_you_mean" # a default gem; `ruby --disable-did_you_mean` leaves it unloaded
 require "monitor"
 require_relative "mapper/type"
 require_relative "mapper/name_resolver"
@@ -47,7 +48,7 @@ module Typemap
     end
 
     # Builds an instance of `klass` from `hash`: each key present replaces the default, each key
-    # absent keeps it; a nested table loads onto the default's nested object. Then validates it.
+    # absent keeps it; a nested Hash loads onto the default's nested object. Then validates it.
     #
     # @param klass [Class] a data class or an accessor class
     # @param hash [Hash{String, Symbol => Object}] the parsed file
@@ -168,11 +169,7 @@ module Typemap
       # @raise [DataError]
       def load_object(klass, raw, path, base)
         plan = mapper.plan_for(klass)
-        unless raw.is_a?(Hash)
-          raise DataError.new(path,
-                              "expected a table of #{klass}'s properties, got #{raw.inspect}")
-        end
-
+        Type.mismatch(klass, raw, path) unless raw.is_a?(Hash)
         values = Type.string_keys(raw, path)
         reject_unknown(plan, values, path)
         base, loaded = base ? [base, {}] : fresh_base(plan, values, path)
@@ -207,13 +204,22 @@ module Typemap
         [base, loaded]
       end
 
+      # `rasie_at_percent: unknown key, did you mean raise_at_percent?`; with no close match,
+      # `rasie: unknown key; Ballooning has raise_at_percent, shrink_at_percent`.
       def reject_unknown(plan, values, path)
         return if unknown == :ignore
 
-        extra = values.keys - plan.names.map(&:to_s)
-        return if extra.empty?
+        names = plan.names.map(&:to_s)
+        key = (values.keys - names).first
+        return if key.nil?
 
-        raise DataError.new(Type.child(path, extra.first), "unknown key; #{plan.klass} has #{plan.names.join(", ")}")
+        guesses = DidYouMean::SpellChecker.new(dictionary: names).correct(key)
+        detail = if guesses.empty?
+                   "unknown key; #{plan.klass} has #{names.join(", ")}"
+                 else
+                   "unknown key, did you mean #{guesses.join(" or ")}?"
+                 end
+        raise DataError.new(Type.child(path, key), detail)
       end
     end
   end
