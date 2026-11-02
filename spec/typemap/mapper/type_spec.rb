@@ -14,7 +14,9 @@ RSpec.describe Typemap::Mapper::Type do
 
   describe "Integer" do
     it("takes an Integer") { assert_equal 70, load_value("Integer", 70, default: 1) }
-    it("rejects a String") { assert_equal 'value: expected Integer, got "70"', error_for("Integer", "70", default: 1) }
+    it "rejects a String, telling to remove the quotes" do
+      assert_equal 'value: expected Integer, got "70"; remove the quotes', error_for("Integer", "70", default: 1)
+    end
     it("takes 70.0 as 70") { assert_same 70, load_value("Integer", 70.0, default: 1) }
     it("rejects 70.5") { assert_equal "value: expected Integer, got 70.5", error_for("Integer", 70.5, default: 1) }
     it("rejects NaN") { assert_equal "value: expected Integer, got NaN", error_for("Integer", Float::NAN, default: 1) }
@@ -97,7 +99,8 @@ RSpec.describe Typemap::Mapper::Type do
   describe "Array[T]" do
     it("takes an Array of T") { assert_equal %w[a b], load_value("Array[String]", %w[a b], default: []) }
     it "names the bad element by index" do
-      assert_equal "value[1]: expected String, got 2", error_for("Array[String]", ["a", 2], default: [])
+      assert_equal "value[1]: expected String, got 2; quote it to make it a string",
+                   error_for("Array[String]", ["a", 2], default: [])
     end
     it("rejects a Hash") {
       assert_equal "value: expected Array[String], got {}", error_for("Array[String]", {}, default: [])

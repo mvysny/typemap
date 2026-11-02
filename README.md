@@ -31,12 +31,14 @@ mapper = Typemap::Mapper.new
 ballooning = mapper.load(Ballooning, Tomlrb.load_file("ballooning.toml"))
 ```
 
-A file that does not fit raises `Typemap::DataError`, with the path of the offending value:
+A file that does not fit raises `Typemap::DataError`, with the path of the offending value and,
+for a classic mistake, the fix:
 
 ```
-raise_at_percent: expected Integer, got "70"
+raise_at_percent: expected Integer, got "70"; remove the quotes
 raise_at_percent: must be 1 to 100, got 170
-pinned_vms[1]: expected String, got 7
+pinned_vms: expected Array[String], got a single String; wrap it in an array
+pinned_vms[1]: expected String, got 7; quote it to make it a string
 rasie_at_percent: unknown key, did you mean raise_at_percent?
 rasie: unknown key; Ballooning has raise_at_percent, shrink_at_percent, pinned_vms
 raise_at_percent must be above shrink_at_percent
@@ -277,7 +279,7 @@ def load_config
   file = Paths.config_file("myapp")
   MAPPER.load(Config, file ? Tomlrb.load_file(file) : {})   # no file: the defaults, or `api_key: required`
 rescue Typemap::DataError => e
-  abort "#{file || "config.toml"}: #{e.message}"   # ~/.config/myapp/config.toml: port: expected Integer, got "80"
+  abort "#{file || "config.toml"}: #{e.message}"   # ~/.config/myapp/config.toml: port: expected Integer, got "80"; remove the quotes
 end
 
 def load_state

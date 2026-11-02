@@ -55,7 +55,7 @@ RSpec.describe Typemap::Mapper, "with a data class" do
     it "raises on an unknown key, with its path" do
       error = assert_raises(Typemap::DataError) { mapper.load(DataClassSpec::Config, { "ballooning" => { "rasie" => 1 } }) }
       assert_equal "ballooning.rasie", error.path
-      assert_equal "ballooning.rasie: unknown key; DataClassSpec::Ballooning has raise_at_percent, " \
+      assert_equal "ballooning.rasie: unknown key; Ballooning has raise_at_percent, " \
                    "shrink_at_percent, pinned_vms", error.message
     end
 
@@ -94,12 +94,12 @@ RSpec.describe Typemap::Mapper, "with a data class" do
 
     it "raises when the root is not a Hash" do
       error = assert_raises(Typemap::DataError) { mapper.load(DataClassSpec::Ballooning, [1]) }
-      assert_equal "expected DataClassSpec::Ballooning, got [1]", error.message
+      assert_equal "expected Ballooning, got [1]", error.message
     end
 
     it "raises when a nested value is not a Hash" do
       error = assert_raises(Typemap::DataError) { mapper.load(DataClassSpec::Config, { "ballooning" => 5 }) }
-      assert_equal "ballooning: expected DataClassSpec::Ballooning, got 5", error.message
+      assert_equal "ballooning: expected Ballooning, got 5", error.message
     end
 
     it "rejects an unknown unknown: policy" do

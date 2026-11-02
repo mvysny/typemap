@@ -6,13 +6,21 @@ module Typemap
   end
 
   # The data does not fit the class: a value of the wrong type or outside its limits, an unknown
-  # key, a required key missing, a failed `validate`. The file's author fixes it; the message starts with the path of
-  # the offending value, `ballooning.raise_at_percent: expected Integer, got "70"`. An array entry
-  # whose class names it with `entry_name` shows that after its index, `server[1] "grok".url`.
+  # key, a required key missing, a failed `validate`. The file's author fixes it; the message starts
+  # with the path of the offending value and, for a classic mistake whose fix is mechanical, ends
+  # with the fix:
   #
-  # A type is named as RBS spells it, `expected Config::Ballooning`, never by a format's word for a
-  # Hash — TOML's "table", JSON's "object" mean something only to that format's users. No line
-  # number: the parsers keep none in the Hash they return, so the path stands in.
+  #   ballooning.raise_at_percent: expected Integer, got "70"; remove the quotes
+  #   server: expected Array[Server], got a single Server; wrap it in an array
+  #   ui.sandbox: unknown key; sandbox belongs to the top level
+  #
+  # An array entry whose class names it with `entry_name` shows that after its index,
+  # `server[1] "grok".url`.
+  #
+  # A type is named as RBS spells it, a class without its namespace on load (`Server`, not
+  # `Shared::Config::Server`), in full on dump. Neither type nor fix uses a format's words, TOML's
+  # "table" or `[[server]]` (`D_format_neutral_hints`). No line number: the parsers keep none in
+  # the Hash they return, so the path stands in.
   class DataError < Error
     # @return [String] the dotted path of the offending value, `""` for the root object
     attr_reader :path

@@ -162,3 +162,17 @@ share a name; uniqueness is the app's check. Why only arrays: a Hash entry's pat
 carries its key. Why the name is printed whole: it shows only when a load fails. Why
 `entry_name` unprefixed: a mapped class is a data carrier, and `constrain` and `validate` carry
 no prefix either. The cost: a raising `entry_name` only warns, so the original error survives.
+
+## D_format_neutral_hints — Why does a load error hint at the fix in no format's words, rather than TOML's `[[server]]`?
+
+A classic mistake leaves the same trace in the Hash whatever the format: TOML's `[x]` for
+`[[x]]`, YAML's missing `- `, JSON's missing `[ ]` are all one entry where an array belongs, so
+`wrap it in an array` serves all three. Why not the format's syntax: Typemap never sees the
+file, so a `format:` option would have to know each parser — Tomlrb's `Time` for a date-time,
+Psych reading `no` as `false` — and inside an array a TOML header names the wrong entry,
+`[llm.params]` attaching to the last `[[llm]]`. If `wrap it in an array` proves too far from
+`[[server]]`, the next step is a `DataError` carrying the kind of mistake, the expected type and
+the found value, for the app to word; a `hint` field names no mistake, so the hint sits in
+`detail`. Why a misplaced key is looked up in the enclosing objects only: that chain has it or
+not, while a search across the tree guesses. The cost: a hint shows the parser's value,
+`got 1.1` where the file says `1.10`.

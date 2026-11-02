@@ -5,6 +5,7 @@
 
 - Add `Typemap::Mapper#load` and `#dump` — a Hash onto a data class or an accessor class and back, strict types, then the whole result validated — limits, required keys, the class's own `validate`, nested objects first — the first problem raised as a `Typemap::DataError` carrying the value's path.
 - Add a suggestion for a misspelled key, `rasie_at_percent: unknown key, did you mean raise_at_percent?`, and limits in words, `must be at least 1, got 0` rather than `0 is not in 1..`.
+- Add the fix to a load error for a classic mistake — `wrap it in an array`, `unwrap it`, `quote it to make it a string`, `remove the quotes`, `sandbox belongs to the top level` — and name a class without its namespace there, `expected Array[Server]`.
 - Add an array entry's name to an error path: a class method `entry_name(raw)`, given the entry as a Hash with String keys, turns `server[1].url: required` into `server[1] "grok".url: required`.
 - Add required keys: a data class's keyword without a default, or an accessor class's `constrain :name, type: "T?", required: true`; one missing raises `name: required`, nested ones with their full path.
 - Add the `Object` type: plain data — String, Integer, Float, bool, Array, Hash with String keys, `nil` nested inside — passed through on load and checked on dump, so `Hash[String, Object]` holds keys sent somewhere verbatim.

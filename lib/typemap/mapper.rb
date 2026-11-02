@@ -62,7 +62,7 @@ module Typemap
         raise ArgumentError, "unknown: must be :raise or :ignore, got #{unknown.inspect}"
       end
 
-      object = Session.new(mapper: self, unknown: unknown).load_object(klass, hash, "", nil)
+      object = Session.new(mapper: self, unknown: unknown, parents: []).load_object(klass, hash, "", nil)
       validate_object(object, "")
       object
     end
@@ -170,14 +170,17 @@ module Typemap
       raise DataError.new(path, e.message)
     end
 
-    # One `load` call's conversion: the mapper and the `unknown:` policy every nested object shares.
+    # One `load` call's conversion: the mapper and the `unknown:` policy every nested object
+    # shares, and the objects enclosing the one being loaded.
     #
     # @api private
     # @!attribute [r] mapper
     #   @return [Mapper]
     # @!attribute [r] unknown
     #   @return [Symbol] `:raise` or `:ignore`
-    Session = Data.define(:mapper, :unknown) do
+    # @!attribute [r] parents
+    #   @return [Array<Array(Plan, String)>] each enclosing object's plan and path, outermost first
+    Session = Data.define(:mapper, :unknown, :parents) do
       # @param klass [Class]
       # @param raw [Object] what the file holds for this object, expected to be a Hash
       # @param path [String] where it sits, `""` for the root
@@ -186,27 +189,41 @@ module Typemap
       # @raise [DataError]
       def load_object(klass, raw, path, base)
         plan = mapper.plan_for(klass)
-        Type.mismatch(klass, raw, path) unless raw.is_a?(Hash)
+        not_a_hash(klass, raw, path, base) unless raw.is_a?(Hash)
         values = Type.string_keys(raw, path)
         reject_unknown(plan, values, path)
-        base, loaded = base ? [base, {}] : fresh_base(plan, values, path)
+        inside = with(parents: [*parents, [plan, path]])
+        base, loaded = base ? [base, {}] : fresh_base(plan, values, path, inside)
         plan.properties.each do |property|
           key = property.name.to_s
           next if !values.key?(key) || loaded.key?(property.name)
 
           base_value = plan.shape.read(base, property.name)
-          loaded[property.name] = property.type.load(values[key], Type.child(path, key), self, base_value)
+          loaded[property.name] = property.type.load(values[key], Type.child(path, key), inside, base_value)
         end
         plan.build(base, loaded)
       end
 
       private
 
+      # `expected Server, got an array of one Server; unwrap it` when the one entry loads — TOML's
+      # `[[server]]` for `[server]`.
+      #
+      # @raise [DataError] always
+      def not_a_hash(klass, raw, path, base)
+        name = Type.short_name(klass)
+        if raw.is_a?(Array) && raw.size == 1 && Type.loads? { load_object(klass, raw.first, path, base) }
+          Type.mismatch(name, raw, path, found: "an array of one #{name}", hint: "unwrap it")
+        end
+        Type.mismatch(name, raw, path)
+      end
+
       # A bare `new`; or, for a data class with required keywords, `new` given just those, loaded
       # first from the file — a nested one onto its own class's defaults, there being no other.
       #
+      # @param inside [Session] the session for the object's own properties
       # @return [Array(Object, Hash{Symbol => Object})] the base, and the values loaded for it
-      def fresh_base(plan, values, path)
+      def fresh_base(plan, values, path, inside)
         return [plan.klass.new, {}] if plan.required_keywords.empty?
 
         loaded = plan.properties.select { |property| plan.required_keywords.include?(property.name) }.to_h do |property|
@@ -214,7 +231,7 @@ module Typemap
           child = Type.child(path, key)
           raise DataError.new(child, "required") unless values.key?(key)
 
-          [property.name, property.type.load(values[key], child, self, nil)]
+          [property.name, property.type.load(values[key], child, inside, nil)]
         end
         base = plan.klass.new(**loaded)
         plan.check_default(base)
@@ -222,7 +239,15 @@ module Typemap
       end
 
       # `rasie_at_percent: unknown key, did you mean raise_at_percent?`; with no close match,
-      # `rasie: unknown key; Ballooning has raise_at_percent, shrink_at_percent`.
+      # `rasie: unknown key; Ballooning has raise_at_percent, shrink_at_percent`. A key an
+      # enclosing object has, the nearest first, reads `ui.sandbox: unknown key; sandbox belongs
+      # to the top level` — TOML's key written below a `[ui]` header, meant for above it.
+      #
+      # == Implementation details
+      #
+      # Enclosing objects only, never siblings or the rest of the tree: the chain either has the
+      # key or doesn't, while a search across the tree guesses. A key in the wrong sibling is told
+      # by the class's own key list.
       def reject_unknown(plan, values, path)
         return if unknown == :ignore
 
@@ -230,13 +255,18 @@ module Typemap
         key = (values.keys - names).first
         return if key.nil?
 
+        raise DataError.new(Type.child(path, key), unknown_detail(key, names, plan))
+      end
+
+      # @return [String]
+      def unknown_detail(key, names, plan)
+        _, owner = parents.reverse.find { |parent, _| parent.names.any? { |name| name.to_s == key } }
+        return "unknown key; #{key} belongs to #{owner.empty? ? "the top level" : owner}" unless owner.nil?
+
         guesses = DidYouMean::SpellChecker.new(dictionary: names).correct(key)
-        detail = if guesses.empty?
-                   "unknown key; #{plan.klass} has #{names.join(", ")}"
-                 else
-                   "unknown key, did you mean #{guesses.join(" or ")}?"
-                 end
-        raise DataError.new(Type.child(path, key), detail)
+        return "unknown key, did you mean #{guesses.join(" or ")}?" unless guesses.empty?
+
+        "unknown key; #{Type.short_name(plan.klass)} has #{names.join(", ")}"
       end
     end
   end

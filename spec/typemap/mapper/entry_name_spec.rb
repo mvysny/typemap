@@ -109,7 +109,7 @@ RSpec.describe Typemap::Mapper, "naming an array entry" do
 
     it "gives entry_name String keys, whatever the file used" do
       error = load_error(EntryNameSpec::Config, { servers: [{ id: "grok", url: 1 }] })
-      assert_equal 'servers[0] "grok".url: expected String, got 1', error.message
+      assert_equal 'servers[0] "grok".url: expected String, got 1; quote it to make it a string', error.message
     end
 
     it "names an entry that fails the validation, from the finished object with its defaults" do
@@ -129,11 +129,11 @@ RSpec.describe Typemap::Mapper, "naming an array entry" do
     end
 
     it "leaves the bare index when the entry is no Hash, or entry_name gives nothing" do
-      assert_equal "servers[0]: expected EntryNameSpec::Server, got 1",
+      assert_equal "servers[0]: expected Server, got 1",
                    load_error(EntryNameSpec::Config, { "servers" => [1] }).message
-      assert_equal "servers[0].id: expected String, got 7",
+      assert_equal "servers[0].id: expected String, got 7; quote it to make it a string",
                    load_error(EntryNameSpec::Config, { "servers" => [{ "id" => 7, "url" => "u" }] }).message
-      assert_equal "unnamed[0].x: unknown key; EntryNameSpec::Unnamed has id",
+      assert_equal "unnamed[0].x: unknown key; Unnamed has id",
                    load_error(EntryNameSpec::Config, { "unnamed" => [{ "x" => 1 }] }).message
       assert_equal "plain[0].id: expected Integer, got \"x\"",
                    load_error(EntryNameSpec::Config, { "plain" => [{ "id" => "x" }] }).message

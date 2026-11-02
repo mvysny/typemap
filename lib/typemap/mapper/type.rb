@@ -14,19 +14,60 @@ module Typemap
     # - `accepts?(value)` — whether a default fits;
     # - `limits` — which of `constrain`'s `in:` / `format:` the type can take.
     #
-    # `to_s` is the RBS spelling, used in every message.
+    # `to_s` is the RBS spelling, used in every message; `to_s(short: true)` drops each class's
+    # namespace, for load messages, whose reader writes the file and never sees the code.
     #
     # @api private
     module Type
+      # `expected Integer, got "70"; remove the quotes`.
+      #
       # @param type [#to_s] the expected type
       # @param value [Object] what was found instead
       # @param path [String]
+      # @param found [String, nil] words for the found value, in place of its `inspect`
+      # @param hint [String, nil] the fix, for a mistake whose fix is mechanical
       # @raise [DataError] always
-      def self.mismatch(type, value, path)
-        shown = value.inspect
-        shown = "#{shown[0, 60]}…" if shown.length > 61
-        raise DataError.new(path, "expected #{type}, got #{shown}")
+      def self.mismatch(type, value, path, found: nil, hint: nil)
+        if found.nil?
+          found = value.inspect
+          found = "#{found[0, 60]}…" if found.length > 61
+        end
+        detail = "expected #{type}, got #{found}"
+        raise DataError.new(path, hint ? "#{detail}; #{hint}" : detail)
       end
+
+      # @param klass [Class]
+      # @return [String] `Server` for `Shared::Config::Server`
+      def self.short_name(klass)
+        klass.name&.split("::")&.last || klass.inspect
+      end
+
+      # Whether the block loads without an error, for a hint on a value that has already failed;
+      # the loaded value is dropped.
+      #
+      # @yieldreturn [Object] the value loaded
+      # @return [Boolean]
+      def self.loads?
+        yield
+        true
+      rescue Error
+        false
+      end
+
+      # The hint for a value a file writes unquoted — a number, a bool, a parser's date-time —
+      # where a String belongs: YAML's `no` is `false`, `1.10` is the Float `1.1`.
+      #
+      # @param value [Object]
+      # @return [String, nil]
+      def self.quote_hint(value)
+        return if value.nil? || [String, Symbol, Array, Hash].any? { |klass| value.is_a?(klass) }
+
+        "quote it to make it a string"
+      end
+
+      # A String a number's quotes were put around, `"70"`. Not what `Integer()` takes: `"0x1A"`
+      # and `"1_000"` may not have been meant as numbers.
+      NUMBER_TEXT = { Integer => /\A[+-]?\d+\z/, Float => /\A[+-]?\d+(\.\d+)?([eE][+-]?\d+)?\z/ }.freeze
 
       # @param path [String]
       # @param key [String, Symbol]
@@ -46,7 +87,14 @@ module Typemap
           return value if value.is_a?(klass)
 
           whole = Type.whole_number(value, klass)
-          whole.nil? ? Type.mismatch(self, value, path) : whole
+          return whole unless whole.nil?
+
+          hint = if klass == String
+                   Type.quote_hint(value)
+                 elsif value.is_a?(String) && Type::NUMBER_TEXT.fetch(klass).match?(value)
+                   "remove the quotes"
+                 end
+          Type.mismatch(self, value, path, hint: hint)
         end
 
         def dump(value, _mapper, path) = (value.is_a?(klass) ? value : Type.mismatch(self, value, path))
@@ -55,19 +103,24 @@ module Typemap
         def limits = klass == String ? %i[in format] : %i[in]
         def numeric? = klass != String
         def nested_classes = []
-        def to_s = klass.name
+        def to_s(**) = klass.name
       end
 
       # `bool`: `true` or `false`.
       Bool = Data.define do
-        def load(value, path, _session, _base) = (accepts?(value) ? value : Type.mismatch(self, value, path))
+        def load(value, path, _session, _base)
+          return value if accepts?(value)
+
+          Type.mismatch(self, value, path, hint: ("remove the quotes" if %w[true false].include?(value)))
+        end
+
         def dump(value, _mapper, path) = (accepts?(value) ? value : Type.mismatch(self, value, path))
         def each_object(_value, _mapper, _path) = nil
         def accepts?(value) = [true, false].include?(value)
         def limits = []
         def numeric? = false
         def nested_classes = []
-        def to_s = "bool"
+        def to_s(**) = "bool"
       end
 
       # A union of literals, `"short" | "verbose"`: the value must equal one of them, class
@@ -76,14 +129,19 @@ module Typemap
       # @!attribute [r] values
       #   @return [Array<String, Integer, Float, Boolean>]
       Literals = Data.define(:values) do
-        def load(value, path, _session, _base) = (accepts?(value) ? value : Type.mismatch(self, value, path))
+        def load(value, path, _session, _base)
+          return value if accepts?(value)
+
+          Type.mismatch(self, value, path, hint: (Type.quote_hint(value) if values.all?(String)))
+        end
+
         def dump(value, _mapper, path) = (accepts?(value) ? value : Type.mismatch(self, value, path))
         def each_object(_value, _mapper, _path) = nil
         def accepts?(value) = values.any? { |literal| literal.eql?(value) }
         def limits = []
         def numeric? = false
         def nested_classes = []
-        def to_s = values.map(&:inspect).join(" | ")
+        def to_s(**) = values.map(&:inspect).join(" | ")
       end
 
       # `T?`: `nil`, or a `T`.
@@ -98,10 +156,15 @@ module Typemap
         def limits = inner.limits
         def numeric? = inner.numeric?
         def nested_classes = inner.nested_classes
-        def to_s = inner.is_a?(Literals) && inner.values.size > 1 ? "(#{inner})?" : "#{inner}?"
+
+        def to_s(short: false)
+          inner.is_a?(Literals) && inner.values.size > 1 ? "(#{inner})?" : "#{inner.to_s(short: short)}?"
+        end
       end
 
-      # `Array[T]`: an Array whose every element is a `T`; an element's path is `key[3]`.
+      # `Array[T]`: an Array whose every element is a `T`; an element's path is `key[3]`. A lone `T`
+      # where the Array belongs — TOML's `[server]` for `[[server]]` — raises
+      # `server: expected Array[Server], got a single Server; wrap it in an array`.
       #
       # An entry whose class has a class method `entry_name(raw)` is named in its errors after its
       # index — `server[1] "grok".url: required` — `raw` being the entry as a file would hold it:
@@ -120,7 +183,7 @@ module Typemap
       #   @return [Object] the elements' type
       ArrayOf = Data.define(:element) do
         def load(value, path, session, _base)
-          Type.mismatch(self, value, path) unless value.is_a?(Array)
+          single(value, path, session) unless value.is_a?(Array)
           value.each_with_index.map do |item, i|
             at = "#{path}[#{i}]"
             named(item, at, session.mapper) { element.load(item, at, session, nil) }
@@ -146,9 +209,19 @@ module Typemap
         def limits = []
         def numeric? = false
         def nested_classes = element.nested_classes
-        def to_s = "Array[#{element}]"
+        def to_s(short: false) = "Array[#{element.to_s(short: short)}]"
 
         private
+
+        # @raise [DataError] always
+        def single(value, path, session)
+          spelled = to_s(short: true)
+          if !value.nil? && Type.loads? { element.load(value, path, session, nil) }
+            Type.mismatch(spelled, value, path, found: "a single #{element.to_s(short: true)}",
+                                                hint: "wrap it in an array")
+          end
+          Type.mismatch(spelled, value, path)
+        end
 
         # @return [Object] the block's result
         # @raise [DataError] the block's, its path naming the entry when it has a name
@@ -187,7 +260,7 @@ module Typemap
       #   @return [Object] the values' type
       HashOf = Data.define(:value) do
         def load(raw, path, session, _base)
-          Type.mismatch(self, raw, path) unless raw.is_a?(Hash)
+          Type.mismatch(to_s(short: true), raw, path) unless raw.is_a?(Hash)
           Type.string_keys(raw, path).to_h { |key, item| [key, value.load(item, Type.child(path, key), session, nil)] }
         end
 
@@ -204,7 +277,7 @@ module Typemap
         def limits = []
         def numeric? = false
         def nested_classes = value.nested_classes
-        def to_s = "Hash[String, #{value}]"
+        def to_s(short: false) = "Hash[String, #{value.to_s(short: short)}]"
       end
 
       # `Object`: plain data passed through as the file holds it, for a value whose meaning is
@@ -230,7 +303,7 @@ module Typemap
         def limits = []
         def numeric? = false
         def nested_classes = []
-        def to_s = "Object"
+        def to_s(**) = "Object"
       end
 
       # A class of the app's own — a data class or an accessor class — loaded from a Hash by
@@ -239,10 +312,7 @@ module Typemap
       # @!attribute [r] klass
       #   @return [Class]
       ClassRef = Data.define(:klass) do
-        def load(value, path, session, base)
-          Type.mismatch(self, value, path) unless value.is_a?(Hash)
-          session.load_object(klass, value, path, base)
-        end
+        def load(value, path, session, base) = session.load_object(klass, value, path, base)
 
         def dump(value, mapper, path)
           Type.mismatch(self, value, path) unless value.is_a?(klass)
@@ -255,7 +325,7 @@ module Typemap
         def limits = []
         def numeric? = false
         def nested_classes = [klass]
-        def to_s = klass.name || klass.inspect
+        def to_s(short: false) = short ? Type.short_name(klass) : (klass.name || klass.inspect)
       end
 
       # A whole number as the other numeric class, when it converts exactly: `5` as a Float is
