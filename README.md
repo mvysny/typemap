@@ -123,6 +123,41 @@ has no type, and Typemap raises when it first reads the class — it never seria
 every object once the whole result is built, nested objects first, on `load` and on `dump`;
 whatever it raises becomes a `Typemap::DataError` carrying the object's path.
 
+### `constrain` at a glance
+
+`extend Typemap::Constrain` gives the class two macros. `constrain` declares a property's type
+and limits, and `ignore` leaves a public accessor out of the mapping. Neither one defines
+anything on the class.
+
+| Option | Takes | On | A miss reads |
+|---|---|---|---|
+| `type:` | an RBS type String: `"Integer"`, `"String?"`, `"Array[Server]"` ([Types](#types)) | every property, unless its type comes from [RBS](#types-from-rbs-signatures) | `expected Integer, got "70"` |
+| `in:` | a Range: `1..100`, `(1..)` | a number | `must be 1 to 100, got 170` |
+| `in:` | an Array of allowed values: `%w[short verbose]` | a number or a String | `must be one of "short", "verbose", got "x"` |
+| `format:` | a Regexp | a String | `"ab" does not match /\A[a-z]\z/` |
+| `not_blank:` | `true` | a String | `must not be blank` |
+| `not_empty:` | `true` | an Array or a Hash | `must not be empty` |
+| `unique:` | `true` | an Array | `tags[2]: duplicate of tags[0], both "a"` |
+| `unique_by:` | a property, `:id`, or a function, `->(s) { s.url.downcase }` | an Array | `server[2] "local".id: duplicate of server[0], both "local"` |
+| `required:` | `true` | an accessor class's `T?` defaulting to `nil` ([Required keys](#required-keys)) | `api_key: required` |
+
+```ruby
+constrain :raise_at_percent, :shrink_at_percent, type: "Integer"   # several properties at once
+constrain :raise_at_percent, in: 1..100                             # a later call adds to the first
+ignore :on_change                                                   # a listener, not a setting
+```
+
+- **Calls for one property merge**, and an option given twice for it raises `ArgumentError`, as
+  does a misspelled option the moment the class body runs.
+- **A limit the type cannot take** is a `Typemap::DefinitionError`, raised when the mapper first
+  reads the class: `format:` on an Integer, `unique:` on a Hash, `unique_by: :idd` on a class
+  with no `idd`.
+- **A subclass inherits its superclass's constraints** and may add to them. Where both give the
+  same option, the subclass's wins.
+- **A `nil` passes every limit**, so on a `String?`, `not_blank: true` means "if given, not
+  blank". The exception is a `nil` entry in an array, which `unique:` and `unique_by:` compare
+  like any other value.
+
 ### Required keys
 
 A key the file must give, one with no sensible default, such as an API key:
@@ -242,9 +277,8 @@ read the next line as the range's end.
 
 A miss reads `must be 1 to 100, got 170`, `must be at least 1, got 0`, `must not be blank`. A
 `format:` miss prints the pattern, which the person editing the file may not read; for a message
-in your own words, raise it from `validate` instead. A `nil` passes every limit: on a `String?`,
-`not_blank: true` means "if given, not blank". The exception is a `nil` inside an array under
-`unique:` or `unique_by:`: it is compared like any other value.
+in your own words, raise it from `validate` instead. Every option, in one table:
+[`constrain` at a glance](#constrain-at-a-glance).
 
 ## Problems in the class itself
 
