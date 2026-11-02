@@ -43,7 +43,7 @@ module Typemap
       def self.build(klass, types)
         raise DefinitionError, "#{klass.inspect} is not a class" unless klass.is_a?(Class)
 
-        shape = klass < Data ? DataShape : AccessorShape
+        shape = shape_for(klass)
         names = property_names(klass, shape)
         constraints = Constrain.constraints_for(klass)
         stray = constraints.keys - names
@@ -58,6 +58,10 @@ module Typemap
         plan
       end
 
+      # @param klass [Class]
+      # @return [Module] {DataShape} or {AccessorShape}
+      def self.shape_for(klass) = klass < Data ? DataShape : AccessorShape
+
       # @raise [DefinitionError] unless `klass.new` works with no arguments
       def self.bare_new(klass)
         klass.new
@@ -65,6 +69,10 @@ module Typemap
         raise DefinitionError, "#{klass}: must build with a bare new, its default instance (#{e.message})"
       end
 
+      # @param klass [Class]
+      # @param shape [Module] {DataShape} or {AccessorShape}
+      # @return [Array<Symbol>] the mapped properties, `ignore`d ones left out
+      # @raise [DefinitionError] on an `ignore` naming no property, or no property left
       def self.property_names(klass, shape)
         all = shape.properties(klass)
         ignored = Constrain.ignored_for(klass)
@@ -81,7 +89,8 @@ module Typemap
         type = types.type_for(klass, name, constraint)
         limits = if constraint
                    Limits.new(in: constraint.in, format: constraint.format,
-                              not_blank: constraint.not_blank || false, not_empty: constraint.not_empty || false)
+                              not_blank: constraint.not_blank || false, not_empty: constraint.not_empty || false,
+                              unique: constraint.unique || false, unique_by: constraint.unique_by)
                  else
                    Limits.none
                  end
@@ -139,6 +148,7 @@ module Typemap
         end
 
         property.limits.check(value, "")
+        property.limits.check_unique(value, property.type, "", nil)
       rescue DataError => e
         raise DefinitionError, "its default #{e.message}"
       end

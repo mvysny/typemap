@@ -158,7 +158,7 @@ Why not `to_s`: the app's logs or UI already own it, and it needs an instance, w
 conversion error never has — hence a class method. Why `raw` is always plain data with String
 keys, the file's Hash on load and the entry dumped afterwards: a function given sometimes a
 Hash and sometimes the object is a bug waiting to happen. Why the index stays: two entries may
-share a name; uniqueness is the app's check. Why `to_s.strip` on the result: every app wrote it. Why only arrays: a Hash entry's path already
+share a name, and a `unique_by:` error must point at one of the two (`D_unique_entries`). Why `to_s.strip` on the result: every app wrote it. Why only arrays: a Hash entry's path already
 carries its key. Why the name is printed whole: it shows only when a load fails. Why
 `entry_name` unprefixed: a mapped class is a data carrier, and `constrain` and `validate` carry
 no prefix either. The cost: a raising `entry_name` only warns, so the original error survives.
@@ -195,3 +195,15 @@ nobody means. Why blank is `strip.empty?`: a person types the file, so it is ASC
 be blank`, and Bean Validation's pair; `present:` reads as `required:`, and `blank: false` would
 switch a check on with `false`. Why `nil` passes, unlike `@NotBlank`: the type already says
 whether `nil` may come, so a `String?` reads "if given, not blank".
+
+## D_unique_entries — Why `unique_by:` a property or a function, rather than leaving uniqueness to `validate`?
+
+Every config with named entries checks they are unique, and from `validate` the message has no
+path: `duplicate server id(s): local` sends the user hunting `[[server]]` headers, the hunt
+`D_entry_name` ended. Why a Symbol and a Proc both: the Symbol says *what* and is checked when
+the class is first read, its path ending in the property, `server[2] "local".id`; the Proc says
+*how*, `D_functions_over_rules`. Why the Proc gets the object, not `entry_name`'s raw Hash:
+validation and dump hold only objects, and `s.url.downcase` wants the typed value. Why `unique:`
+raises on identity equality: it would always pass. Why two `nil`s collide: Ruby's `nil == nil`,
+not SQL's NULLs, which would surprise a Ruby programmer. Why per array: a key unique across two
+arrays is rare, and `validate` still does it.

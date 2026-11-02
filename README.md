@@ -220,7 +220,22 @@ constrain :mode, type: "String", in: %w[short verbose]      # a list of values
 constrain :name, type: "String", format: /\A[a-z]+\z/       # a pattern, for a String
 constrain :url, type: "String", not_blank: true             # not "", not "  "
 constrain :command, type: "Array[String]", not_empty: true  # at least one element; a Hash too
+constrain :tags, type: "Array[String]", unique: true        # no two entries equal
+constrain :server, type: "Array[Server]", unique_by: :id    # no two entries share an id
+constrain :mirror, type: "Array[Mirror]", unique_by: ->(m) { m.url.downcase }
 ```
+
+`unique_by:` takes a property of the entries' class, or a function of the entry for anything
+more. A duplicate is reported at the second entry, which is named like any entry error, and
+the detail gives the first entry's index:
+
+```
+server[2] "local".id: duplicate of server[0], both "local"
+```
+
+`unique: true` on entries of your own class compares them with `eql?`. A data class has value
+equality; on a class that only compares by identity, `unique: true` raises. Two `nil`s are
+duplicates, as `nil == nil` is in Ruby.
 
 Parenthesize an endless range at the end of a line: `in: 1..` followed by a newline makes Ruby
 read the next line as the range's end.
@@ -228,7 +243,8 @@ read the next line as the range's end.
 A miss reads `must be 1 to 100, got 170`, `must be at least 1, got 0`, `must not be blank`. A
 `format:` miss prints the pattern, which the person editing the file may not read; for a message
 in your own words, raise it from `validate` instead. A `nil` passes every limit: on a `String?`,
-`not_blank: true` means "if given, not blank".
+`not_blank: true` means "if given, not blank". The exception is a `nil` inside an array under
+`unique:` or `unique_by:`: it is compared like any other value.
 
 ## Problems in the class itself
 

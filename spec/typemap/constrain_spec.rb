@@ -60,6 +60,15 @@ RSpec.describe Typemap::Constrain do
     assert_raises(ArgumentError) { klass.constrain(:a, not_empty: 1) }
   end
 
+  it "takes unique: only as true, unique_by: only as a Symbol or a Proc, and not both" do
+    assert_raises(ArgumentError) { klass.constrain(:a, unique: false) }
+    error = assert_raises(ArgumentError) { klass.constrain(:a, unique_by: "id") }
+    assert_equal 'constrain: unique_by: must be a Symbol or a Proc, got "id"', error.message
+    error = assert_raises(ArgumentError) { klass.constrain(:a, unique: true, unique_by: :id) }
+    assert_equal "constrain: unique: and unique_by: together; unique_by: alone says what to compare", error.message
+    klass.constrain(:a, unique_by: ->(entry) { entry })
+  end
+
   it "rejects a call with nothing to record" do
     assert_raises(ArgumentError) { klass.constrain(:a) }
   end

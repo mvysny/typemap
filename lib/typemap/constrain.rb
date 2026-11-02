@@ -7,6 +7,7 @@ module Typemap
   #     constrain :pinned_vms, type: "Array[String]"
   #     constrain :api_key, type: "String?", required: true   # an accessor class's nil default
   #     constrain :url, type: "String", not_blank: true        # not "" and not "  "
+  #     constrain :servers, type: "Array[Server]", unique_by: :id
   #     ignore :on_change
   #
   # Each call records metadata and defines nothing — no accessor, no default, no `initialize`;
@@ -27,9 +28,14 @@ module Typemap
     #   @return [true, nil] a String must hold more than whitespace
     # @!attribute [r] not_empty
     #   @return [true, nil] an Array or a Hash must hold at least one element
+    # @!attribute [r] unique
+    #   @return [true, nil] no two entries of an Array may be equal
+    # @!attribute [r] unique_by
+    #   @return [Symbol, Proc, nil] what of an Array's entry no two entries may share
     # @!attribute [r] required
     #   @return [Boolean, nil] whether a loaded or dumped object must hold a non-nil value
-    Constraint = Data.define(:type, :type_owner, :in, :format, :not_blank, :not_empty, :required)
+    Constraint = Data.define(:type, :type_owner, :in, :format, :not_blank, :not_empty, :unique, :unique_by,
+                             :required)
 
     # Records a type and limits for one or more properties; several calls for one property merge,
     # but one option given twice raises.
@@ -43,15 +49,20 @@ module Typemap
     #   fails it). Bean Validation's `@NotBlank`, except that a `String?`'s `nil` passes.
     # @param not_empty [true, nil] `true`: an Array or a Hash must hold an element; a String
     #   takes `not_blank:` instead
+    # @param unique [true, nil] `true`: no two entries of an Array may be equal (`eql?`), `nil`s
+    #   included; entries of a class need value equality, as a data class has
+    # @param unique_by [Symbol, Proc, nil] what no two entries of an Array may share: a property
+    #   of the entries' class, `:id`, or a function of the entry, `->(s) { s.url.downcase }`
     # @param required [Boolean, nil] `true`: the file must give this key, on an accessor class
     #   whose property is a `T?` defaulting to `nil` — a loaded or dumped object still holding
     #   `nil` raises. A data class says it by a keyword without a default instead.
     # @return [void]
-    # @raise [ArgumentError] on no names, nothing to record, a wrongly typed option, or an option
-    #   already given for that property
-    def constrain(*names, type: nil, in: nil, format: nil, not_blank: nil, not_empty: nil, required: nil)
+    # @raise [ArgumentError] on no names, nothing to record, a wrongly typed option, `unique:` and
+    #   `unique_by:` together, or an option already given for that property
+    def constrain(*names, type: nil, in: nil, format: nil, not_blank: nil, not_empty: nil, unique: nil,
+                  unique_by: nil, required: nil)
       given = { type: type, in: binding.local_variable_get(:in), format: format, not_blank: not_blank,
-                not_empty: not_empty, required: required }.compact
+                not_empty: not_empty, unique: unique, unique_by: unique_by, required: required }.compact
       check_constrain_args(names, given)
       given[:type_owner] = self if type
       names.each do |name|
@@ -106,7 +117,8 @@ module Typemap
       merged.transform_values do |options|
         Constraint.new(type: options[:type], type_owner: options[:type_owner], in: options[:in],
                        format: options[:format], not_blank: options[:not_blank],
-                       not_empty: options[:not_empty], required: options[:required])
+                       not_empty: options[:not_empty], unique: options[:unique],
+                       unique_by: options[:unique_by], required: options[:required])
       end
     end
 
@@ -126,9 +138,13 @@ module Typemap
       end
       if given.empty?
         raise ArgumentError,
-              "constrain #{names.inspect}: give type:, in:, format:, not_blank:, not_empty: or required:"
+              "constrain #{names.inspect}: give type:, in:, format:, not_blank:, not_empty:, unique:, " \
+              "unique_by: or required:"
       end
       given.each { |key, value| check_constrain_option(key, value) }
+      return unless given.key?(:unique) && given.key?(:unique_by)
+
+      raise ArgumentError, "constrain: unique: and unique_by: together; unique_by: alone says what to compare"
     end
 
     def check_constrain_option(key, value)
@@ -136,8 +152,10 @@ module Typemap
                  when :type then "an RBS type String" unless value.is_a?(String)
                  when :in then "a Range or an Array" unless value.is_a?(Range) || value.is_a?(Array)
                  when :format then "a Regexp" unless value.is_a?(Regexp)
+                 when :unique_by then "a Symbol or a Proc" unless value.is_a?(Symbol) || value.is_a?(Proc)
                  when :required then "true or false" unless [true, false].include?(value)
-                 # Negated names: `false` would be a double negative meaning what leaving it out does.
+                 # A switch: `false` would mean what leaving it out does — for the negated names, a
+                 # double negative.
                  else "true, or left out" unless value == true
                  end
       raise ArgumentError, "constrain: #{key}: must be #{expected}, got #{value.inspect}" if expected

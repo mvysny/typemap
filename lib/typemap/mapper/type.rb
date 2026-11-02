@@ -12,8 +12,8 @@ module Typemap
     # - `each_object(value, mapper, path) { |object, path| }` — the app's objects inside a value
     #   that has passed `load` or `dump`, for the validation that walks the result;
     # - `accepts?(value)` — whether a default fits;
-    # - `limits` — which of `constrain`'s `in:` / `format:` / `not_blank:` / `not_empty:` the type
-    #   can take.
+    # - `limits` — which of `constrain`'s `in:` / `format:` / `not_blank:` / `not_empty:` /
+    #   `unique:` the type can take.
     #
     # `to_s` is the RBS spelling, used in every message; `to_s(short: true)` drops each class's
     # namespace, for load messages, whose reader writes the file and never sees the code.
@@ -207,10 +207,35 @@ module Typemap
         end
 
         def accepts?(value) = value.is_a?(Array) && value.all? { |item| element.accepts?(item) }
-        def limits = %i[not_empty]
+        def limits = %i[not_empty unique]
         def numeric? = false
         def nested_classes = element.nested_classes
         def to_s(short: false) = "Array[#{element.to_s(short: short)}]"
+
+        # Raises on the second of two entries whose keys are `eql?` — `nil` and `nil` included,
+        # as Ruby compares them. The path ends in the property when `by` names one; the detail
+        # names the first entry by index, then the shared key when it is plain data.
+        #
+        # @param value [Array] entries that have passed their own validation
+        # @param by [true, Symbol, Proc] the entry itself, its property, or a function of it
+        # @param path [String]
+        # @param mapper [Mapper, nil] names the entry; `nil` leaves the bare index
+        # @return [void]
+        # @raise [DataError] on a duplicate
+        def check_unique(value, by, path, mapper)
+          seen = {}
+          value.each_with_index do |item, i|
+            key = Type.unique_key(item, by)
+            first = seen[key]
+            seen[key] = i if first.nil?
+            next if first.nil?
+
+            at = "#{path}[#{i}]"
+            detail = "duplicate of #{path}[#{first}]#{", both #{key.inspect}" if Type.plain?(key)}"
+            error = DataError.new(by.is_a?(Symbol) ? "#{at}.#{by}" : at, detail)
+            mapper ? named(item, at, mapper) { raise error } : raise(error)
+          end
+        end
 
         private
 
@@ -346,6 +371,17 @@ module Typemap
           float if float.finite? && float.to_i == value
         elsif klass == Integer && value.is_a?(Float)
           value.to_i if value.finite? && value.to_i == value
+        end
+      end
+
+      # @param item [Object] an array entry
+      # @param by [true, Symbol, Proc] `unique: true`, or `unique_by:`
+      # @return [Object] what `item` is compared by
+      def self.unique_key(item, by)
+        case by
+        when true then item
+        when Symbol then item.public_send(by)
+        else by.call(item)
         end
       end
 

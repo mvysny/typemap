@@ -164,6 +164,7 @@ module Typemap
       values.each do |property, value|
         child = Type.child(path, property.name)
         property.limits.check(value, child)
+        property.limits.check_unique(value, property.type, child, self)
         raise DataError.new(child, "required") if property.required && value.nil?
       end
     end
