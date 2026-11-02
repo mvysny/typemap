@@ -28,6 +28,10 @@ RSpec.describe Typemap::Mapper::RBSTypes do
     assert_equal 'mode: expected "short" | "verbose", got String "loud"', error.message
   end
 
+  it "types a property by its instance reader, never by a class-level one of the same name" do
+    assert_equal 5, mapper.load(RbsApp::Retries, { "limit" => 5 }).limit
+  end
+
   it "takes constrain type: for a property the signature leaves out" do
     assert_equal "hi", mapper.load(RbsApp::State, { "note" => "hi" }).note
   end

@@ -54,4 +54,15 @@ module RbsApp
 
     def initialize = @a = 1
   end
+
+  # A class-level reader named like the property; only the instance one types it.
+  class Retries
+    class << self
+      attr_reader :limit
+    end
+
+    attr_accessor :limit
+
+    def initialize = @limit = 3
+  end
 end

@@ -26,4 +26,10 @@ module RbsApp
   class Twice
     attr_accessor a: Integer
   end
+
+  class Retries
+    attr_reader self.limit: String
+
+    attr_accessor limit: Integer
+  end
 end

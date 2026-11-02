@@ -101,7 +101,7 @@ module Typemap
       def reader_type(member, name)
         case member
         when ::RBS::AST::Members::AttrReader, ::RBS::AST::Members::AttrAccessor
-          member.type if member.name == name
+          member.type if member.name == name && member.kind == :instance
         when ::RBS::AST::Members::MethodDefinition
           return unless member.name == name && member.kind == :instance
 
