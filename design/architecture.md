@@ -18,6 +18,7 @@ doc-comment content has crept in.
 - A **shape** — `DataShape` or `AccessorShape`, picked by `klass < Data` — lists, reads and builds a class's properties, and says which keys are required; the mapper never branches on the kind of class elsewhere (`D_accessor_properties`, `D_required_keys`).
 - `load` and `dump` are each a **conversion**, Hash ↔ objects with the strict type check, then a **validation** that walks the finished tree and changes nothing (`D_validation_phase`).
 - Each `Type` checks, loads and dumps its own values, and yields the app's objects inside one for validation; `ClassRef` is the one that recurses, back into the mapper.
+- An error path names an array entry in one place, `ArrayOf`: it rescues the `DataError` from entry `i` on load, dump and validation alike, and re-raises it with the class's `entry_name` after `[i]` — so nothing is computed until an error passes (`D_entry_name`).
 
 ## Flows
 

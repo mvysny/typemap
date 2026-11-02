@@ -9,8 +9,8 @@ module Typemap
     # - `load(value, path, session, base)` — the value as the property holds it, or a
     #   {DataError}; strict, never coerced, a whole number between Integer and Float aside;
     # - `dump(value, mapper, path)` — the value as plain Hash/Array/scalar data;
-    # - `each_object(value, path) { |object, path| }` — the app's objects inside a value that has
-    #   passed `load` or `dump`, for the validation that walks the result;
+    # - `each_object(value, mapper, path) { |object, path| }` — the app's objects inside a value
+    #   that has passed `load` or `dump`, for the validation that walks the result;
     # - `accepts?(value)` — whether a default fits;
     # - `limits` — which of `constrain`'s `in:` / `format:` the type can take.
     #
@@ -50,7 +50,7 @@ module Typemap
         end
 
         def dump(value, _mapper, path) = (value.is_a?(klass) ? value : Type.mismatch(self, value, path))
-        def each_object(_value, _path) = nil
+        def each_object(_value, _mapper, _path) = nil
         def accepts?(value) = value.is_a?(klass)
         def limits = klass == String ? %i[in format] : %i[in]
         def numeric? = klass != String
@@ -62,7 +62,7 @@ module Typemap
       Bool = Data.define do
         def load(value, path, _session, _base) = (accepts?(value) ? value : Type.mismatch(self, value, path))
         def dump(value, _mapper, path) = (accepts?(value) ? value : Type.mismatch(self, value, path))
-        def each_object(_value, _path) = nil
+        def each_object(_value, _mapper, _path) = nil
         def accepts?(value) = [true, false].include?(value)
         def limits = []
         def numeric? = false
@@ -78,7 +78,7 @@ module Typemap
       Literals = Data.define(:values) do
         def load(value, path, _session, _base) = (accepts?(value) ? value : Type.mismatch(self, value, path))
         def dump(value, _mapper, path) = (accepts?(value) ? value : Type.mismatch(self, value, path))
-        def each_object(_value, _path) = nil
+        def each_object(_value, _mapper, _path) = nil
         def accepts?(value) = values.any? { |literal| literal.eql?(value) }
         def limits = []
         def numeric? = false
@@ -93,7 +93,7 @@ module Typemap
       Optional = Data.define(:inner) do
         def load(value, path, session, base) = (value.nil? ? nil : inner.load(value, path, session, base))
         def dump(value, mapper, path) = (value.nil? ? nil : inner.dump(value, mapper, path))
-        def each_object(value, path, &) = (inner.each_object(value, path, &) unless value.nil?)
+        def each_object(value, mapper, path, &) = (inner.each_object(value, mapper, path, &) unless value.nil?)
         def accepts?(value) = value.nil? || inner.accepts?(value)
         def limits = inner.limits
         def numeric? = inner.numeric?
@@ -103,21 +103,43 @@ module Typemap
 
       # `Array[T]`: an Array whose every element is a `T`; an element's path is `key[3]`.
       #
+      # An entry whose class has a class method `entry_name(raw)` is named in its errors after its
+      # index — `server[1] "grok".url: required` — `raw` being the entry as a file would hold it:
+      #
+      #   def self.entry_name(raw) = raw["id"]
+      #
+      # == Implementation details
+      #
+      # The name is worked out only when an entry's error passes through, so a load that succeeds
+      # never calls `entry_name`. `raw` is always plain data with String keys: on load the file's
+      # Hash, on validation and dump the entry dumped by {Mapper#entry_hash}. No name, just the
+      # index, when `entry_name` returns anything but a non-empty String; when it raises, a
+      # warning says why, and the error the user needs is raised unnamed.
+      #
       # @!attribute [r] element
       #   @return [Object] the elements' type
       ArrayOf = Data.define(:element) do
         def load(value, path, session, _base)
           Type.mismatch(self, value, path) unless value.is_a?(Array)
-          value.each_with_index.map { |item, i| element.load(item, "#{path}[#{i}]", session, nil) }
+          value.each_with_index.map do |item, i|
+            at = "#{path}[#{i}]"
+            named(item, at, session.mapper) { element.load(item, at, session, nil) }
+          end
         end
 
         def dump(value, mapper, path)
           Type.mismatch(self, value, path) unless value.is_a?(Array)
-          value.each_with_index.map { |item, i| element.dump(item, mapper, "#{path}[#{i}]") }
+          value.each_with_index.map do |item, i|
+            at = "#{path}[#{i}]"
+            named(item, at, mapper) { element.dump(item, mapper, at) }
+          end
         end
 
-        def each_object(value, path, &)
-          value.each_with_index { |item, i| element.each_object(item, "#{path}[#{i}]", &) }
+        def each_object(value, mapper, path, &)
+          value.each_with_index do |item, i|
+            at = "#{path}[#{i}]"
+            named(item, at, mapper) { element.each_object(item, mapper, at, &) }
+          end
         end
 
         def accepts?(value) = value.is_a?(Array) && value.all? { |item| element.accepts?(item) }
@@ -125,6 +147,37 @@ module Typemap
         def numeric? = false
         def nested_classes = element.nested_classes
         def to_s = "Array[#{element}]"
+
+        private
+
+        # @return [Object] the block's result
+        # @raise [DataError] the block's, its path naming the entry when it has a name
+        def named(item, at, mapper)
+          yield
+        rescue DataError => e
+          name = entry_name(item, at, mapper)
+          raise e if name.nil?
+
+          renamed = DataError.new("#{at} #{name.inspect}#{e.path.delete_prefix(at)}", e.detail)
+          renamed.set_backtrace(e.backtrace)
+          raise renamed, cause: e.cause
+        end
+
+        # @return [String, nil]
+        def entry_name(item, at, mapper)
+          ref = element.is_a?(Optional) ? element.inner : element
+          return unless ref.is_a?(ClassRef) && ref.klass.respond_to?(:entry_name)
+
+          raw = case item
+                when Hash then item.transform_keys(&:to_s)
+                when ref.klass then mapper.entry_hash(item)
+                end
+          name = raw && ref.klass.entry_name(raw)
+          name if name.is_a?(String) && !name.empty?
+        rescue StandardError => e
+          warn "Typemap: #{at} left unnamed, #{ref.klass}.entry_name: #{e.class}: #{e.message}"
+          nil
+        end
       end
 
       # `Hash[String, T]`: a Hash with String keys (a Symbol key is taken as its String) and a
@@ -143,7 +196,9 @@ module Typemap
           Type.string_keys(raw, path).to_h { |key, item| [key, value.dump(item, mapper, Type.child(path, key))] }
         end
 
-        def each_object(raw, path, &) = raw.each { |key, item| value.each_object(item, Type.child(path, key), &) }
+        def each_object(raw, mapper, path, &)
+          raw.each { |key, item| value.each_object(item, mapper, Type.child(path, key), &) }
+        end
 
         def accepts?(raw) = raw.is_a?(Hash) && raw.all? { |key, item| key.is_a?(String) && value.accepts?(item) }
         def limits = []
@@ -170,7 +225,7 @@ module Typemap
           Type.plain(value, path)
         end
 
-        def each_object(_value, _path) = nil
+        def each_object(_value, _mapper, _path) = nil
         def accepts?(value) = !value.nil? && Type.plain?(value)
         def limits = []
         def numeric? = false
@@ -194,7 +249,7 @@ module Typemap
           mapper.dump_object(value, path)
         end
 
-        def each_object(value, path) = yield(value, path)
+        def each_object(value, _mapper, path) = yield(value, path)
 
         def accepts?(value) = value.is_a?(klass)
         def limits = []

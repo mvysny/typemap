@@ -7,7 +7,8 @@ module Typemap
 
   # The data does not fit the class: a value of the wrong type or outside its limits, an unknown
   # key, a required key missing, a failed `validate`. The file's author fixes it; the message starts with the path of
-  # the offending value, `ballooning.raise_at_percent: expected Integer, got "70"`.
+  # the offending value, `ballooning.raise_at_percent: expected Integer, got "70"`. An array entry
+  # whose class names it with `entry_name` shows that after its index, `server[1] "grok".url`.
   #
   # A type is named as RBS spells it, `expected Config::Ballooning`, never by a format's word for a
   # Hash — TOML's "table", JSON's "object" mean something only to that format's users. No line
@@ -16,10 +17,14 @@ module Typemap
     # @return [String] the dotted path of the offending value, `""` for the root object
     attr_reader :path
 
+    # @return [String] what is wrong with the value: the message without its path
+    attr_reader :detail
+
     # @param path [String] the dotted path of the offending value, `""` for the root
     # @param detail [String] what is wrong with it
     def initialize(path, detail)
       @path = path
+      @detail = detail
       super(path.empty? ? detail : "#{path}: #{detail}")
     end
   end

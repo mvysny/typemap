@@ -134,6 +134,31 @@ end
   class's `String?` keyword takes it.
 - **`dump` raises** on a required accessor still `nil`, since the file would not load back.
 
+### Naming an array entry
+
+An error inside an array names the entry by its index, `server[1].url: required`. A class
+method `entry_name` adds the name the file gave it, so nobody counts `[[server]]` headers:
+
+```ruby
+class Server < Data.define(:id, :url)
+  extend Typemap::Constrain
+
+  constrain :id, :url, type: "String"
+
+  def self.entry_name(raw) = raw["id"]   # or "#{raw["host"]}:#{raw["port"]}", anything
+end
+```
+
+```
+server[1] "grok".url: required
+```
+
+- **`raw` is the entry as a file would hold it**: a Hash with String keys, its values not yet
+  checked. Once the entry is built, for a later check or a `dump`, it is the entry dumped, defaults
+  included.
+- **No name, just the index**, when `entry_name` returns `nil`, an empty String or anything not
+  a String. When it raises, Typemap warns and raises the original error unnamed.
+
 ## Types
 
 Every property needs a declared type: from `constrain type:`, or from your RBS signatures (below).

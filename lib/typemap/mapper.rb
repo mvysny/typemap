@@ -94,6 +94,21 @@ module Typemap
       end
     end
 
+    # `object` as {#dump_object} gives it, less any property whose value won't dump: the `raw` an
+    # array entry's `entry_name` takes when the entry is an object, in validation and dump.
+    #
+    # @api private
+    # @param object [Object] an instance of a mapped class
+    # @return [Hash{String => Object}]
+    def entry_hash(object)
+      plan = plan_for(object.class)
+      plan.properties.each_with_object({}) do |property, hash|
+        hash[property.name.to_s] = property.type.dump(plan.shape.read(object, property.name), self, "")
+      rescue DataError
+        next # likely the very value being reported; the name does without it
+      end
+    end
+
     # Validates a converted object, nested objects first; changes nothing. Types are not
     # rechecked: conversion did that, and the limits assume it.
     #
@@ -106,7 +121,9 @@ module Typemap
       plan = plan_for(object.class)
       values = plan.properties.to_h { |property| [property, plan.shape.read(object, property.name)] }
       values.each do |property, value|
-        property.type.each_object(value, Type.child(path, property.name)) { |nested, at| validate_object(nested, at) }
+        property.type.each_object(value, self, Type.child(path, property.name)) do |nested, at|
+          validate_object(nested, at)
+        end
       end
       check_values(values, path)
       call_validate(object, path)

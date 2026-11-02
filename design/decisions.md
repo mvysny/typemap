@@ -148,3 +148,17 @@ then `dump` must reject it or name a gem's class — and `JSON.generate` writes 
 1.1's boolean keys, `on:` and `yes:` both read as `true`, one value lost. Why `nil` only as
 `Object?`: as for every type. Why not `untyped` too: sord writes it where it gave up. Why not
 deep-freeze: Typemap freezes no container. The cost: a TOML date-time inside raises.
+
+## D_entry_name — Why does an array entry get its name from a class method taking a Hash?
+
+In `server[1].url: required` the reader counts `[[server]]` headers to find the entry; the
+entry's own name, `server[1] "grok".url`, finds it at a glance. Why not `identified_by :id`: a
+name may be two keys joined or a fallback, and a function says that (`D_functions_over_rules`).
+Why not `to_s`: the app's logs or UI already own it, and it needs an instance, which a
+conversion error never has — hence a class method. Why `raw` is always plain data with String
+keys, the file's Hash on load and the entry dumped afterwards: a function given sometimes a
+Hash and sometimes the object is a bug waiting to happen. Why the index stays: two entries may
+share a name; uniqueness is the app's check. Why only arrays: a Hash entry's path already
+carries its key. Why the name is printed whole: it shows only when a load fails. Why
+`entry_name` unprefixed: a mapped class is a data carrier, and `constrain` and `validate` carry
+no prefix either. The cost: a raising `entry_name` only warns, so the original error survives.
