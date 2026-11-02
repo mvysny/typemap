@@ -102,6 +102,17 @@ release gate runs, building, tagging and pushing nothing.
 
 - Verify the new version appears at <https://rubygems.org/gems/typemap>.
 - Verify the tag is on GitHub: <https://github.com/mvysny/typemap/tags>.
+- Create the GitHub Release on that tag, its notes the version's `CHANGELOG.md` section, the gem
+  `rake release` built attached — the same file RubyGems serves:
+
+  ```sh
+  awk '/^## \[x\.y\.z\]/{f=1;next} /^## \[/{f=0} f' CHANGELOG.md > notes.md
+  gh release create vx.y.z --verify-tag --title "x.y.z" --notes-file notes.md pkg/typemap-x.y.z.gem
+  rm notes.md
+  ```
+
+  `--verify-tag` aborts if the tag isn't on the remote, rather than letting `gh` create one on the
+  wrong commit.
 
 ## If something goes wrong mid-release
 
