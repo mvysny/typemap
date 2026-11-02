@@ -27,6 +27,7 @@ Typemap owns the mapping and the checking, and does that one thing well.
 | `design/decisions.md` | why this and not that — `D_` entries, FAQ-shaped | lazy |
 | `design/research.md` | what Ruby, rbs and sorbet-runtime actually do — `R_` entries, each claim with provenance | lazy |
 | `design/ideas/*.md` | one scratchpad per idea in flight; deleted once its nuggets land in a row above | lazy |
+| `design/releasing.md` | the release runbook — version bump, CHANGELOG reconciliation, `rake release` and its guards | lazy |
 | doc comments | what one symbol does, why it is shaped so, why a constant has its value | at the symbol |
 
 Every fact lives in exactly one of these; the others link to it.
@@ -68,6 +69,7 @@ bundle exec rake check            # the same, spelled out
 bundle exec rspec spec/path/to_spec.rb:LINE     # one test
 bundle exec rubocop               # just the lint
 design/verify_design_tripwires.sh # the doc-layer checks alone
+bundle exec rake release          # cut a release: the gate, then tag, push, gem push — design/releasing.md first
 ```
 
 ## Skills this project follows
