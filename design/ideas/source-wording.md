@@ -45,9 +45,9 @@ mapper.load(Config, hash, source: :toml)   # :ruby (the default), :toml, :json, 
 
 | Mistake | `:ruby` | `:toml` | `:json` | `:yaml` |
 |---|---|---|---|---|
-| a single entry where an array of objects belongs | wrap it in an array | write `[[server]]`, not `[server]` | wrap it in `[ ]` | start the entry with `- ` |
+| a single entry where an array of objects belongs | wrap it in an array | write `[[server]]`, not `[server]`, or `server = [{…}]` | wrap it in `[ ]` | start the entry with `- ` |
 | a single scalar where an array belongs, `tags = "a"` | wrap it in an array | wrap it in `[ ]` | wrap it in `[ ]` | make it a list: start it with `- ` |
-| an array of one where one object belongs | unwrap it | write `[server]`, not `[[server]]` | remove the `[ ]` | remove the `- ` |
+| an array of one where one object belongs | unwrap it | write `[server]`, not `[[server]]`, or `server = {…}` | remove the `[ ]` | remove the `- ` |
 | a non-String where a String belongs | — | quote it | quote it | quote it; for a bool: YAML reads `yes`, `no`, `on`, `off` as booleans |
 | a String reading as the Integer / Float / bool expected | — | remove the quotes | remove the quotes | remove the quotes |
 | a key that the top level has, under `ui` | belongs to the top level | move it above the `[ui]` header | move it out of `ui`'s `{ }` | dedent it to the top level |
@@ -98,9 +98,10 @@ wording.misplaced(path:, key:, owner:) # owner: the enclosing object's path, "" 
 
 ## Costs
 
-- **TOML inline tables.** Someone who wrote `server = {id = "a"}` is told `[[server]]`. That's a
-  correct fix, just not the smallest one (`server = [{id = "a"}]`). A key misplaced inside an
-  inline table, or set as a dotted key, is told about a header that isn't there.
+- **TOML inline tables.** The array hints name both spellings, the header and the inline
+  `server = [{…}]`, since Typemap can't tell which one the file used. That makes them longer,
+  but they're never wrong, and erring toward helpful is the point. A key misplaced inside an
+  inline table, or set as a dotted key, is still told about a header that isn't there.
 - **YAML flow style.** Someone who wrote `{id: a}` or `[a]` is told about `- ` and indentation.
   Block style is the common case.
 - **The promise changes.** "Finding config files, file formats, env-var overrides … stay the
@@ -114,8 +115,6 @@ wording.misplaced(path:, key:, owner:) # owner: the enclosing object's path, "" 
   hunch is that the objects read clearer. I agree: each format's voice sits in one file, and the
   sites stay one call each. A table of five mistakes × four sources is the case where a `case`
   repeats itself most. Settle it when writing the code.
-- `Q_inline_tables`: add `or server = [{…}]` to TOML's `[[server]]` hint? Longer, but never
-  wrong.
 - `Q_found_syntax`: spell a found container in the format's syntax, `got {id = "a"}` rather than
   `{"id"=>"a"}`? Not part of this idea; it only goes here so it isn't lost.
 
