@@ -124,6 +124,18 @@ RSpec.describe Typemap::Mapper, "reading a class it cannot map" do
                  error_for(holder("String", "a", in: "a".."z")))
   end
 
+  it "points not_empty: on a String to not_blank:, and back" do
+    assert_match(/not_empty: limits only an Array or a Hash, not String\?; a String takes not_blank:/,
+                 error_for(holder("String?", nil, not_empty: true)))
+    assert_match(/not_blank: limits only a String, not Array\[String\]; an Array or a Hash takes not_empty:/,
+                 error_for(holder("Array[String]", [], not_blank: true)))
+    assert_match(/not_blank: limits only a String, not Integer\z/, error_for(holder("Integer", 1, not_blank: true)))
+  end
+
+  it "raises on a blank default under not_blank:" do
+    assert_match(/value: its default must not be blank/, error_for(holder("String", "", not_blank: true)))
+  end
+
   it "raises for a nested class's problem when the outer class is first read" do
     assert_match(/Untyped#a: no type/, error_for(DefinitionErrorSpec::Nested))
   end

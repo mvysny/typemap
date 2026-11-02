@@ -217,14 +217,17 @@ constrain :raise_at_percent, type: "Integer", in: 1..100   # a range, for a numb
 constrain :min_gib, type: "Integer", in: (1..)              # an endless range: parenthesize it
 constrain :mode, type: "String", in: %w[short verbose]      # a list of values
 constrain :name, type: "String", format: /\A[a-z]+\z/       # a pattern, for a String
+constrain :url, type: "String", not_blank: true             # not "", not "  "
+constrain :command, type: "Array[String]", not_empty: true  # at least one element; a Hash too
 ```
 
 Parenthesize an endless range at the end of a line: `in: 1..` followed by a newline makes Ruby
 read the next line as the range's end.
 
-A miss reads `must be 1 to 100, got 170`, `must be at least 1, got 0`. A `format:` miss prints the
-pattern, which the person editing the file may not read; for a message in your own words, raise
-it from `validate` instead.
+A miss reads `must be 1 to 100, got 170`, `must be at least 1, got 0`, `must not be blank`. A
+`format:` miss prints the pattern, which the person editing the file may not read; for a message
+in your own words, raise it from `validate` instead. A `nil` passes every limit: on a `String?`,
+`not_blank: true` means "if given, not blank".
 
 ## Problems in the class itself
 

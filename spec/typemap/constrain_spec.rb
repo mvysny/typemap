@@ -54,6 +54,12 @@ RSpec.describe Typemap::Constrain do
     assert_raises(ArgumentError) { klass.constrain(:a, type: Integer) }
   end
 
+  it "takes not_blank: and not_empty: only as true" do
+    error = assert_raises(ArgumentError) { klass.constrain(:a, not_blank: false) }
+    assert_equal "constrain: not_blank: must be true, or left out, got false", error.message
+    assert_raises(ArgumentError) { klass.constrain(:a, not_empty: 1) }
+  end
+
   it "rejects a call with nothing to record" do
     assert_raises(ArgumentError) { klass.constrain(:a) }
   end

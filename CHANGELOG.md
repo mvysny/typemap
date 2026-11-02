@@ -10,6 +10,7 @@
 - Add required keys: a data class's keyword without a default, or an accessor class's `constrain :name, type: "T?", required: true`; one missing raises `name: required`, nested ones with their full path.
 - Add the `Object` type: plain data — String, Integer, Float, bool, Array, Hash with String keys, `nil` nested inside — passed through on load and checked on dump, so `Hash[String, Object]` holds keys sent somewhere verbatim.
 - Add whole-number loading: an `Integer` property takes `70.0` as `70`, a `Float` property takes `1` as `1.0`; `70.5`, NaN and an Integer a Float would round still raise.
+- Add the `not_blank: true` limit for a String, which refuses `""` and `"  "`, and `not_empty: true` for an Array or a Hash; a miss reads `url: must not be blank`, the path down to the key.
 - Add `Typemap::Constrain` — `constrain :name, type: "Integer", in: 1..100, format: /…/` and `ignore :name`, metadata the mapper reads, defining nothing on the class.
 - Add `Typemap::Mapper::BasicTypes`, the default type strategy (types from `constrain type:`), and `Typemap::Mapper::RBSTypes` (types from `sig/*.rbs`, with the app's `rbs` gem).
 - Add `Typemap::DefinitionError`, raised the first time the mapper reads a class it cannot map — no type, a default the type rejects, a limit the type cannot take.

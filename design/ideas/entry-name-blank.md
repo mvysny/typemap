@@ -30,7 +30,5 @@ since the file really does say `" grok "`.
 keys joined, or a fallback. A macro `entry_name :id` is the same thing again; the boilerplate it
 saves is the `.to_s.strip`, which this idea removes without a second way to say it.
 
-**Blank is `String#strip.empty?`**, the same rule as the `not-blank-limit.md` idea's
-`not_blank:`: one definition of blank for both. A person types the file, so the blank is ASCII
-spaces nearly always; the Unicode spaces `strip` leaves (`\u00A0`, `\u200B`) wait for a real
-report, and `/\A[[:space:]]*\z/` is the widening then.
+**Blank is `String#strip.empty?`**, the same rule as `not_blank:` (`D_blank_limits`): one
+definition of blank for both.

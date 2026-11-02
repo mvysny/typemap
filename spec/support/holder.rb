@@ -4,7 +4,7 @@
 module Holder
   # @param type [String] the RBS type string
   # @param default [Object] what a bare `new` sets
-  # @param limits [Hash] `constrain`'s other options: `in:`, `format:`, `required:`
+  # @param limits [Hash] `constrain`'s other options: `in:`, `not_blank:`, `required:`…
   # @return [Class]
   def self.of(type, default, **limits)
     klass = Class.new do

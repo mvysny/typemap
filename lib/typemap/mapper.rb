@@ -32,8 +32,8 @@ module Typemap
   # latter as soon as the class is first read.
   #
   # Both `load` and `dump` validate the whole result once it is built, objects the file left out
-  # included, nested objects first: per object the `in:` / `format:` limits, `required:`, then
-  # the object's own `validate`, if it has one.
+  # included, nested objects first: per object the limits, `required:`, then the object's own
+  # `validate`, if it has one.
   #
   # A mapper remembers what it learnt about each class; it is safe to share between threads.
   class Mapper

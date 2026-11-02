@@ -182,3 +182,16 @@ longer beats wrong. Why a misplaced key is looked up in the enclosing objects on
 it or not, while a search across the tree guesses. The costs: TOML inline tables and YAML flow
 style are told about headers and `- `; a hint shows the parser's value, `got 1.1` where the file
 says `1.10`.
+
+## D_blank_limits — Why `not_blank:` for a String and `not_empty:` for a collection, rather than `validate` or `format: /\S/`?
+
+A String that must say something is the commonest rule a type can't state. Raised from
+`validate`, the path stops at the object and the app re-states the key inside the message;
+`format: /\S/` prints its pattern, which the person editing the file may not read. Why two
+limits rather than one `not_empty:` for both: a String's "empty" would have to mean blank, one
+name meaning two things; and `not_empty:` on a String raises rather than pass `"  "`, the typo
+nobody means. Why blank is `strip.empty?`: a person types the file, so it is ASCII spaces;
+`/\A[[:space:]]*\z/` waits for a real report. Why the names: they mirror the message, `must not
+be blank`, and Bean Validation's pair; `present:` reads as `required:`, and `blank: false` would
+switch a check on with `false`. Why `nil` passes, unlike `@NotBlank`: the type already says
+whether `nil` may come, so a `String?` reads "if given, not blank".

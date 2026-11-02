@@ -79,7 +79,12 @@ module Typemap
 
       def self.property(klass, name, constraint, types)
         type = types.type_for(klass, name, constraint)
-        limits = constraint ? Limits.new(in: constraint.in, format: constraint.format) : Limits.none
+        limits = if constraint
+                   Limits.new(in: constraint.in, format: constraint.format,
+                              not_blank: constraint.not_blank || false, not_empty: constraint.not_empty || false)
+                 else
+                   Limits.none
+                 end
         limits.check_against(type)
         required = constraint&.required || false
         if required && !type.accepts?(nil)

@@ -65,6 +65,36 @@ RSpec.describe Typemap::Mapper::Type do
     end
   end
 
+  describe "not_blank: and not_empty:" do
+    it("takes a String with text") { assert_equal " a ", load_value("String", " a ", default: "x", not_blank: true) }
+    it "rejects an empty String" do
+      assert_equal "value: must not be blank", error_for("String", "", default: "x", not_blank: true)
+    end
+    it "rejects a String of whitespace" do
+      assert_equal "value: must not be blank", error_for("String", " \t\n", default: "x", not_blank: true)
+    end
+    it "words a blank String before format:" do
+      assert_equal "value: must not be blank",
+                   error_for("String", "  ", default: "x", not_blank: true, format: /\A\w+\z/)
+    end
+    it("lets a String?'s nil through") { assert_nil load_value("String?", nil, not_blank: true) }
+    it "rejects an empty Array" do
+      assert_equal "value: must not be empty", error_for("Array[String]", [], default: ["a"], not_empty: true)
+    end
+    it "rejects an empty Hash" do
+      assert_equal "value: must not be empty",
+                   error_for("Hash[String, Integer]", {}, default: { "a" => 1 }, not_empty: true)
+    end
+    it("takes an Array with an element") {
+      assert_equal [""], load_value("Array[String]", [""], default: ["a"], not_empty: true)
+    }
+    it "checks on dump too" do
+      holder = Holder.of("String", "x", not_blank: true).new
+      holder.value = " "
+      assert_equal "value: must not be blank", assert_raises(Typemap::DataError) { mapper.dump(holder) }.message
+    end
+  end
+
   describe "in: as a range, in words" do
     it("1..3") { assert_equal "value: must be 1 to 3, got 4", error_for("Integer", 4, default: 1, in: 1..3) }
     it("1..") { assert_equal "value: must be at least 1, got 0", error_for("Integer", 0, default: 1, in: 1..) }

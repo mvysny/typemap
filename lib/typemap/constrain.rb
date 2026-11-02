@@ -6,6 +6,7 @@ module Typemap
   #     constrain :raise_at_percent, :shrink_at_percent, type: "Integer", in: 1..100
   #     constrain :pinned_vms, type: "Array[String]"
   #     constrain :api_key, type: "String?", required: true   # an accessor class's nil default
+  #     constrain :url, type: "String", not_blank: true        # not "" and not "  "
   #     ignore :on_change
   #
   # Each call records metadata and defines nothing — no accessor, no default, no `initialize`;
@@ -22,9 +23,13 @@ module Typemap
     #   @return [Range, Array, nil] the allowed range, or the allowed values
     # @!attribute [r] format
     #   @return [Regexp, nil] the pattern a String must match
+    # @!attribute [r] not_blank
+    #   @return [true, nil] a String must hold more than whitespace
+    # @!attribute [r] not_empty
+    #   @return [true, nil] an Array or a Hash must hold at least one element
     # @!attribute [r] required
     #   @return [Boolean, nil] whether a loaded or dumped object must hold a non-nil value
-    Constraint = Data.define(:type, :type_owner, :in, :format, :required)
+    Constraint = Data.define(:type, :type_owner, :in, :format, :not_blank, :not_empty, :required)
 
     # Records a type and limits for one or more properties; several calls for one property merge,
     # but one option given twice raises.
@@ -34,16 +39,20 @@ module Typemap
     #   never a Ruby class, so nil-ability is always spelled out (`D_types_declared`)
     # @param in [Range, Array, nil] the allowed range of a number, or the allowed values
     # @param format [Regexp, nil] the pattern a String must match
+    # @param not_blank [true, nil] `true`: a String must hold more than whitespace (`strip.empty?`
+    #   fails it). Bean Validation's `@NotBlank`, except that a `String?`'s `nil` passes.
+    # @param not_empty [true, nil] `true`: an Array or a Hash must hold an element; a String
+    #   takes `not_blank:` instead
     # @param required [Boolean, nil] `true`: the file must give this key, on an accessor class
     #   whose property is a `T?` defaulting to `nil` — a loaded or dumped object still holding
     #   `nil` raises. A data class says it by a keyword without a default instead.
     # @return [void]
     # @raise [ArgumentError] on no names, nothing to record, a wrongly typed option, or an option
     #   already given for that property
-    def constrain(*names, type: nil, in: nil, format: nil, required: nil)
-      allowed = binding.local_variable_get(:in)
-      check_constrain_args(names, type, allowed, format, required)
-      given = { type: type, in: allowed, format: format, required: required }.compact
+    def constrain(*names, type: nil, in: nil, format: nil, not_blank: nil, not_empty: nil, required: nil)
+      given = { type: type, in: binding.local_variable_get(:in), format: format, not_blank: not_blank,
+                not_empty: not_empty, required: required }.compact
+      check_constrain_args(names, given)
       given[:type_owner] = self if type
       names.each do |name|
         entry = typemap_constraints[name] ||= {}
@@ -96,7 +105,8 @@ module Typemap
       end
       merged.transform_values do |options|
         Constraint.new(type: options[:type], type_owner: options[:type_owner], in: options[:in],
-                       format: options[:format], required: options[:required])
+                       format: options[:format], not_blank: options[:not_blank],
+                       not_empty: options[:not_empty], required: options[:required])
       end
     end
 
@@ -108,27 +118,29 @@ module Typemap
 
     private
 
-    def check_constrain_args(names, type, allowed, format, required)
+    def check_constrain_args(names, given)
       raise ArgumentError, "constrain: name at least one property" if names.empty?
 
       names.each do |name|
         raise ArgumentError, "constrain: #{name.inspect} is not a Symbol" unless name.is_a?(Symbol)
       end
-      if [type, allowed, format, required].all?(&:nil?)
-        raise ArgumentError, "constrain #{names.inspect}: give type:, in:, format: or required:"
+      if given.empty?
+        raise ArgumentError,
+              "constrain #{names.inspect}: give type:, in:, format:, not_blank:, not_empty: or required:"
       end
-      unless required.nil? || [true, false].include?(required)
-        raise ArgumentError, "constrain: required: must be true or false, got #{required.inspect}"
-      end
-      unless type.nil? || type.is_a?(String)
-        raise ArgumentError, "constrain: type: must be an RBS type String, got #{type.inspect}"
-      end
-      unless allowed.nil? || allowed.is_a?(Range) || allowed.is_a?(Array)
-        raise ArgumentError, "constrain: in: must be a Range or an Array, got #{allowed.inspect}"
-      end
-      return if format.nil? || format.is_a?(Regexp)
+      given.each { |key, value| check_constrain_option(key, value) }
+    end
 
-      raise ArgumentError, "constrain: format: must be a Regexp, got #{format.inspect}"
+    def check_constrain_option(key, value)
+      expected = case key
+                 when :type then "an RBS type String" unless value.is_a?(String)
+                 when :in then "a Range or an Array" unless value.is_a?(Range) || value.is_a?(Array)
+                 when :format then "a Regexp" unless value.is_a?(Regexp)
+                 when :required then "true or false" unless [true, false].include?(value)
+                 # Negated names: `false` would be a double negative meaning what leaving it out does.
+                 else "true, or left out" unless value == true
+                 end
+      raise ArgumentError, "constrain: #{key}: must be #{expected}, got #{value.inspect}" if expected
     end
   end
 end

@@ -12,7 +12,8 @@ module Typemap
     # - `each_object(value, mapper, path) { |object, path| }` — the app's objects inside a value
     #   that has passed `load` or `dump`, for the validation that walks the result;
     # - `accepts?(value)` — whether a default fits;
-    # - `limits` — which of `constrain`'s `in:` / `format:` the type can take.
+    # - `limits` — which of `constrain`'s `in:` / `format:` / `not_blank:` / `not_empty:` the type
+    #   can take.
     #
     # `to_s` is the RBS spelling, used in every message; `to_s(short: true)` drops each class's
     # namespace, for load messages, whose reader writes the file and never sees the code.
@@ -96,7 +97,7 @@ module Typemap
         def dump(value, _mapper, path) = (value.is_a?(klass) ? value : Type.mismatch(self, value, path))
         def each_object(_value, _mapper, _path) = nil
         def accepts?(value) = value.is_a?(klass)
-        def limits = klass == String ? %i[in format] : %i[in]
+        def limits = klass == String ? %i[in format not_blank] : %i[in]
         def numeric? = klass != String
         def nested_classes = []
         def to_s(**) = klass.name
@@ -206,7 +207,7 @@ module Typemap
         end
 
         def accepts?(value) = value.is_a?(Array) && value.all? { |item| element.accepts?(item) }
-        def limits = []
+        def limits = %i[not_empty]
         def numeric? = false
         def nested_classes = element.nested_classes
         def to_s(short: false) = "Array[#{element.to_s(short: short)}]"
@@ -275,7 +276,7 @@ module Typemap
         end
 
         def accepts?(raw) = raw.is_a?(Hash) && raw.all? { |key, item| key.is_a?(String) && value.accepts?(item) }
-        def limits = []
+        def limits = %i[not_empty]
         def numeric? = false
         def nested_classes = value.nested_classes
         def to_s(short: false) = "Hash[String, #{value.to_s(short: short)}]"
