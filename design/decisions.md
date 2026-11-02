@@ -204,7 +204,12 @@ a `Mapper.new` one: the source belongs to the data, and one mapper may load TOML
 errors are worded for Ruby, their reader being the programmer. Why one private module per source
 rather than a `case` at each hint site: each format's voice sits in one place. Why the TOML array
 hints name the inline `server = [{…}]` too: Typemap can't tell which spelling the file used, and
-longer beats wrong. Why a misplaced key is looked up in the enclosing objects only: that chain has
+longer beats wrong. Why `[[server]]` / `[server]` hint on an entry's keys — a Hash empty or
+sharing one with the class — and not on whether it loads: brackets go wrong on a table still
+being written, a key missing or mistyped, so a load test dropped the hint right then, and one
+that also passed or failed by the default, `required:` and `unknown:`. Why one key, not most: a
+two-key table with a typo is still an entry. Why the entry's own problem waits for the next load:
+the first problem raises. Why a misplaced key is looked up in the enclosing objects only: that chain has
 it or not, while a search across the tree guesses. The costs: TOML inline tables and YAML flow
 style are told about headers and `- `; a hint shows the parser's value, `got 1.1` where the file
 says `1.10`.

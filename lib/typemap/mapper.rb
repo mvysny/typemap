@@ -214,7 +214,7 @@ module Typemap
       # @raise [DataError]
       def load_object(klass, raw, path, base)
         plan = mapper.plan_for(klass)
-        not_a_hash(klass, raw, path, base) unless raw.is_a?(Hash)
+        not_a_hash(plan, raw, path) unless raw.is_a?(Hash)
         values = Type.string_keys(raw, path)
         reject_unknown(plan, values, path)
         inside = with(parents: [*parents, [plan, path]])
@@ -231,13 +231,13 @@ module Typemap
 
       private
 
-      # `expected Server, got an array of one Server; unwrap it` when the one entry loads — TOML's
-      # `[[server]]` for `[server]`.
+      # `expected Server, got an array of one Server; unwrap it` when the one entry is
+      # {Plan#entry_like?} — TOML's `[[server]]` for `[server]`.
       #
       # @raise [DataError] always
-      def not_a_hash(klass, raw, path, base)
-        name = Type.short_name(klass)
-        if raw.is_a?(Array) && raw.size == 1 && Type.loads? { load_object(klass, raw.first, path, base) }
+      def not_a_hash(plan, raw, path)
+        name = Type.short_name(plan.klass)
+        if raw.is_a?(Array) && raw.size == 1 && plan.entry_like?(raw.first)
           Type.mismatch(name, raw, path, found: "an array of one #{name}", hint: wording.unwrap(path))
         end
         Type.mismatch(name, raw, path, wording: wording)

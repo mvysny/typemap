@@ -243,12 +243,29 @@ module Typemap
         def single(value, path, session)
           spelled = to_s(short: true)
           wording = session.wording
-          if !value.nil? && Type.loads? { element.load(value, path, session, nil) }
-            Type.mismatch(spelled, value, path, found: "a single #{element.to_s(short: true)}",
+          if single_entry?(value, path, session)
+            Type.mismatch(spelled, value, path, found: "a single #{entry_type.to_s(short: true)}",
                                                 hint: wording.wrap(path, value.is_a?(Hash)))
           end
           Type.mismatch(spelled, value, path, wording: wording)
         end
+
+        # @return [Boolean] whether `value` is one entry: {Plan#entry_like?} for a class, one that
+        #   loads otherwise — there being no keys to compare
+        def single_entry?(value, path, session)
+          return false if value.nil?
+
+          klass = entry_class
+          return session.mapper.plan_for(klass).entry_like?(value) if klass
+
+          Type.loads? { element.load(value, path, session, nil) }
+        end
+
+        # @return [Object] the type of a non-nil entry, `Server` for `Array[Server?]`
+        def entry_type = element.is_a?(Optional) ? element.inner : element
+
+        # @return [Class, nil] the entries' class, `Server` for `Array[Server?]` too
+        def entry_class = (entry_type.klass if entry_type.is_a?(ClassRef))
 
         # @return [Object] the block's result
         # @raise [DataError] the block's, its path naming the entry when it has a name
@@ -265,17 +282,17 @@ module Typemap
 
         # @return [String, nil]
         def entry_name(item, at, mapper)
-          ref = element.is_a?(Optional) ? element.inner : element
-          return unless ref.is_a?(ClassRef) && ref.klass.respond_to?(:entry_name)
+          klass = entry_class
+          return unless klass.respond_to?(:entry_name)
 
           raw = case item
                 when Hash then item.transform_keys(&:to_s)
-                when ref.klass then mapper.entry_hash(item)
+                when klass then mapper.entry_hash(item)
                 end
-          name = raw && ref.klass.entry_name(raw).to_s.strip
+          name = raw && klass.entry_name(raw).to_s.strip
           name unless name.nil? || name.empty?
         rescue StandardError => e
-          warn "Typemap: #{at} left unnamed, #{ref.klass}.entry_name: #{e.class}: #{e.message}"
+          warn "Typemap: #{at} left unnamed, #{klass}.entry_name: #{e.class}: #{e.message}"
           nil
         end
       end

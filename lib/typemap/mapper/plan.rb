@@ -133,6 +133,19 @@ module Typemap
       # @return [Array<Symbol>]
       def names = properties.map(&:name)
 
+      # Whether `raw` is a table meant for {#klass}, however broken: a Hash that is empty or has
+      # one of its keys. Gates the `[[server]]` / `[server]` hints, which a half-written table
+      # needs most — a test of whether it loads would drop them right there.
+      #
+      #   { "id" => "a", "url" => 3 }   # an entry of Server, with a wrong type
+      #   { "port" => 1 }               # no entry
+      #
+      # @param raw [Object]
+      # @return [Boolean]
+      def entry_like?(raw)
+        raw.is_a?(Hash) && (raw.empty? || raw.keys.map(&:to_s).intersect?(names.map(&:to_s)))
+      end
+
       # @param base [Object] an instance of {#klass}, supplying every value not loaded; never changed
       # @param loaded [Hash{Symbol => Object}] the values read from the file
       # @return [Object] a new instance

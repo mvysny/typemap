@@ -58,7 +58,17 @@ module HintsSpec
     def initialize(servers: []) = super
   end
 
-  class Config < Data.define(:server, :code, :pane, :sandbox, :window, :llm, :pools)
+  # `hits` is a required keyword: an entry without it cannot load.
+  class Search < Data.define(:key, :hits)
+    extend Typemap::Constrain
+
+    constrain :key, type: "String"
+    constrain :hits, type: "Integer"
+
+    def initialize(hits:, key: "") = super
+  end
+
+  class Config < Data.define(:server, :code, :pane, :sandbox, :window, :llm, :pools, :search, :searches, :mirrors)
     extend Typemap::Constrain
 
     constrain :server, type: "Array[Shared::Server]"
@@ -68,10 +78,14 @@ module HintsSpec
     constrain :window, type: "Window"
     constrain :llm, type: "Array[Llm]"
     constrain :pools, type: "Hash[String, Array[Shared::Server]]"
+    constrain :search, type: "Search?"
+    constrain :searches, type: "Array[Search]"
+    constrain :mirrors, type: "Array[Shared::Server?]"
 
     WINDOW = Window.new
 
-    def initialize(server: [], code: Code.new, pane: Pane.new, sandbox: false, window: WINDOW, llm: [], pools: {})
+    def initialize(server: [], code: Code.new, pane: Pane.new, sandbox: false, window: WINDOW, llm: [], pools: {},
+                   search: nil, searches: [], mirrors: [])
       super
     end
   end
@@ -103,12 +117,43 @@ RSpec.describe Typemap::Mapper, "hinting at the fix" do
       assert_equal "value: expected Array[String], got a single String; wrap it in an array",
                    error_for("Array[String]", "a", default: [])
     end
-    it "shows the value when it would not load as an entry either" do
+    it "shows the value when it shares no key with an entry" do
       hash = { "port" => 1 }
       assert_equal "server: expected Array[Server], got Hash #{hash.inspect}", config_error({ "server" => hash })
     end
+    it "shows the value when it shares no key, even where it would load" do
+      hash = { "port" => 1 }
+      error = assert_raises(Typemap::DataError) { mapper.load(HintsSpec::Config, { "server" => hash }, unknown: :ignore) }
+      assert_equal "server: expected Array[Server], got Hash #{hash.inspect}", error.message
+    end
     it "gives no hint for nil, even where an entry may be nil" do
       assert_equal "value: expected Array[String?], got nil", error_for("Array[String?]", nil, default: [])
+    end
+    it "names a scalar entry without its ? where the entries may be nil" do
+      assert_equal "value: expected Array[String?], got a single String; wrap it in an array",
+                   error_for("Array[String?]", "a", default: [])
+    end
+    it "tells to wrap a scalar only when it loads as one" do
+      assert_equal "value: expected Array[String], got Integer 7", error_for("Array[String]", 7, default: [])
+    end
+
+    single = "searches: expected Array[Search], got a single Search; wrap it in an array"
+    it "tells to wrap an entry missing a required key" do
+      assert_equal single, config_error({ "searches" => { "key" => "a" } })
+    end
+    it "tells to wrap an entry with a wrong type" do
+      assert_equal single, config_error({ "searches" => { "hits" => "1" } })
+    end
+    it "tells to wrap an entry with an unknown key" do
+      assert_equal single, config_error({ "searches" => { "hits" => 1, "bogus" => 2 } })
+    end
+    it("tells to wrap an empty entry") { assert_equal single, config_error({ "searches" => {} }) }
+    it "tells to wrap an entry where the entries may be nil" do
+      assert_equal "mirrors: expected Array[Server?], got a single Server; wrap it in an array",
+                   config_error({ "mirrors" => { "id" => "a" } })
+    end
+    it "takes Symbol keys" do
+      assert_equal single, config_error({ "searches" => { key: "a" } })
     end
   end
 
@@ -121,9 +166,20 @@ RSpec.describe Typemap::Mapper, "hinting at the fix" do
       error = assert_raises(Typemap::DataError) { mapper.load(HintsSpec::Pane, [{}]) }
       assert_equal "expected Pane, got an array of one Pane; unwrap it", error.message
     end
-    it "shows the value when the entry would not load" do
-      array = [{ "width" => "x" }]
+    it "shows the value when the entry shares no key" do
+      array = [{ "wdth" => 1 }]
       assert_equal "pane: expected Pane, got Array #{array.inspect}", config_error({ "pane" => array })
+    end
+
+    one = "search: expected Search, got an array of one Search; unwrap it"
+    it "tells to unwrap an entry missing a required key" do
+      assert_equal one, config_error({ "search" => [{ "key" => "a" }] })
+    end
+    it "tells to unwrap an entry with a wrong type" do
+      assert_equal one, config_error({ "search" => [{ "hits" => "1" }] })
+    end
+    it "tells to unwrap an entry with an unknown key" do
+      assert_equal one, config_error({ "search" => [{ "hits" => 1, "bogus" => 2 }] })
     end
     it "shows the value for two entries" do
       assert_equal "pane: expected Pane, got Array [{}, {}]", config_error({ "pane" => [{}, {}] })
