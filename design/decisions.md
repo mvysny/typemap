@@ -163,16 +163,22 @@ carries its key. Why the name is printed whole: it shows only when a load fails.
 `entry_name` unprefixed: a mapped class is a data carrier, and `constrain` and `validate` carry
 no prefix either. The cost: a raising `entry_name` only warns, so the original error survives.
 
-## D_format_neutral_hints — Why does a load error hint at the fix in no format's words, rather than TOML's `[[server]]`?
+## D_source_wording — Why does a load error word its fix for the `source:` the app names, `[[server]]` for TOML?
 
-A classic mistake leaves the same trace in the Hash whatever the format: TOML's `[x]` for
-`[[x]]`, YAML's missing `- `, JSON's missing `[ ]` are all one entry where an array belongs, so
-`wrap it in an array` serves all three. Why not the format's syntax: Typemap never sees the
-file, so a `format:` option would have to know each parser — Tomlrb's `Time` for a date-time,
-Psych reading `no` as `false` — and inside an array a TOML header names the wrong entry,
-`[llm.params]` attaching to the last `[[llm]]`. If `wrap it in an array` proves too far from
-`[[server]]`, the next step is a `DataError` carrying the kind of mistake, the expected type and
-the found value, for the app to word; a `hint` field names no mistake, so the hint sits in
-`detail`. Why a misplaced key is looked up in the enclosing objects only: that chain has it or
-not, while a search across the tree guesses. The cost: a hint shows the parser's value,
-`got 1.1` where the file says `1.10`.
+A classic mistake leaves the same trace in the Hash whatever the format, so the types detect it
+there; only the spelling of the fix depends on the format, and a neutral one served none:
+`wrap it in an array` is far from TOML's `[[server]]`, and `quote it` means nothing for a Hash
+built in Ruby. Why the format's syntax needs no parser knowledge: Tomlrb's `Time` and Psych's
+`no` → `false` decide which values arrive, which is detection; `[[x]]` is the TOML spec. Why a
+TOML header holds inside arrays: a header names no index, `llm[0].servers` → `[[llm.servers]]`,
+written where the path already points. Why `:ruby` is the default: a hint that assumes a text
+file shows only when the app says there is one, so a forgotten `source:` gives fewer hints,
+never wrong ones; and a Ruby programmer reads `got Integer 70` best. Why a `load` keyword and not
+a `Mapper.new` one: the source belongs to the data, and one mapper may load TOML and JSON; dump
+errors are worded for Ruby, their reader being the programmer. Why one private module per source
+rather than a `case` at each hint site: each format's voice sits in one place. Why the TOML array
+hints name the inline `server = [{…}]` too: Typemap can't tell which spelling the file used, and
+longer beats wrong. Why a misplaced key is looked up in the enclosing objects only: that chain has
+it or not, while a search across the tree guesses. The costs: TOML inline tables and YAML flow
+style are told about headers and `- `; a hint shows the parser's value, `got 1.1` where the file
+says `1.10`.

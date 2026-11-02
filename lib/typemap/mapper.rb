@@ -2,6 +2,7 @@
 
 require "did_you_mean" # a default gem; `ruby --disable-did_you_mean` leaves it unloaded
 require "monitor"
+require_relative "mapper/wording"
 require_relative "mapper/type"
 require_relative "mapper/name_resolver"
 require_relative "mapper/type_parser"
@@ -18,8 +19,8 @@ module Typemap
   # `YAML.safe_load_file` — into an instance of a class you already wrote, and back:
   #
   #     mapper = Typemap::Mapper.new
-  #     config = mapper.load(Config, Tomlrb.load_file(path))
-  #     state  = mapper.load(State, JSON.load_file(path), unknown: :ignore)
+  #     config = mapper.load(Config, Tomlrb.load_file(path), source: :toml)
+  #     state  = mapper.load(State, JSON.load_file(path), source: :json, unknown: :ignore)
   #     File.write(path, JSON.pretty_generate(mapper.dump(state)))
   #
   # The class is a data class (`Data.define`) or an accessor class (public reader + writer
@@ -52,17 +53,22 @@ module Typemap
     #
     # @param klass [Class] a data class or an accessor class
     # @param hash [Hash{String, Symbol => Object}] the parsed file
+    # @param source [Symbol] where `hash` came from, so an error words its fix that way: `:toml`
+    #   says `write [[server]], not [server]`, `:ruby` says `wrap it in an array` and names the
+    #   found value's class, `got Integer 70`; `:json` and `:yaml` likewise
     # @param unknown [Symbol] `:raise` on a key the class has no property for, or `:ignore` it —
     #   say, a key a newer version of the app wrote
     # @return [Object] an instance of `klass`
     # @raise [DataError] if the data does not fit the class
     # @raise [DefinitionError] if the class cannot be mapped
-    def load(klass, hash, unknown: :raise)
+    # @raise [ArgumentError] on an unknown `source:` or `unknown:`
+    def load(klass, hash, source: :ruby, unknown: :raise)
       unless %i[raise ignore].include?(unknown)
         raise ArgumentError, "unknown: must be :raise or :ignore, got #{unknown.inspect}"
       end
 
-      object = Session.new(mapper: self, unknown: unknown, parents: []).load_object(klass, hash, "", nil)
+      session = Session.new(mapper: self, unknown: unknown, wording: Wording.for(source), parents: [])
+      object = session.load_object(klass, hash, "", nil)
       validate_object(object, "")
       object
     end
@@ -170,17 +176,19 @@ module Typemap
       raise DataError.new(path, e.message)
     end
 
-    # One `load` call's conversion: the mapper and the `unknown:` policy every nested object
-    # shares, and the objects enclosing the one being loaded.
+    # One `load` call's conversion: the mapper, the `unknown:` policy and the source's wording
+    # every nested object shares, and the objects enclosing the one being loaded.
     #
     # @api private
     # @!attribute [r] mapper
     #   @return [Mapper]
     # @!attribute [r] unknown
     #   @return [Symbol] `:raise` or `:ignore`
+    # @!attribute [r] wording
+    #   @return [Module] the {Wording} for the `source:`
     # @!attribute [r] parents
     #   @return [Array<Array(Plan, String)>] each enclosing object's plan and path, outermost first
-    Session = Data.define(:mapper, :unknown, :parents) do
+    Session = Data.define(:mapper, :unknown, :wording, :parents) do
       # @param klass [Class]
       # @param raw [Object] what the file holds for this object, expected to be a Hash
       # @param path [String] where it sits, `""` for the root
@@ -213,9 +221,9 @@ module Typemap
       def not_a_hash(klass, raw, path, base)
         name = Type.short_name(klass)
         if raw.is_a?(Array) && raw.size == 1 && Type.loads? { load_object(klass, raw.first, path, base) }
-          Type.mismatch(name, raw, path, found: "an array of one #{name}", hint: "unwrap it")
+          Type.mismatch(name, raw, path, found: "an array of one #{name}", hint: wording.unwrap(path))
         end
-        Type.mismatch(name, raw, path)
+        Type.mismatch(name, raw, path, wording: wording)
       end
 
       # A bare `new`; or, for a data class with required keywords, `new` given just those, loaded
@@ -255,13 +263,13 @@ module Typemap
         key = (values.keys - names).first
         return if key.nil?
 
-        raise DataError.new(Type.child(path, key), unknown_detail(key, names, plan))
+        raise DataError.new(Type.child(path, key), unknown_detail(key, names, plan, path))
       end
 
       # @return [String]
-      def unknown_detail(key, names, plan)
+      def unknown_detail(key, names, plan, path)
         _, owner = parents.reverse.find { |parent, _| parent.names.any? { |name| name.to_s == key } }
-        return "unknown key; #{key} belongs to #{owner.empty? ? "the top level" : owner}" unless owner.nil?
+        return "unknown key; #{wording.misplaced(key, path, owner)}" unless owner.nil?
 
         guesses = DidYouMean::SpellChecker.new(dictionary: names).correct(key)
         return "unknown key, did you mean #{guesses.join(" or ")}?" unless guesses.empty?

@@ -24,15 +24,12 @@ module Typemap
       # @param type [#to_s] the expected type
       # @param value [Object] what was found instead
       # @param path [String]
-      # @param found [String, nil] words for the found value, in place of its `inspect`
+      # @param wording [Module] spells the found value: the load's {Wording}, {Wording::Ruby} on dump
+      # @param found [String, nil] words for the found value, in place of the wording's
       # @param hint [String, nil] the fix, for a mistake whose fix is mechanical
       # @raise [DataError] always
-      def self.mismatch(type, value, path, found: nil, hint: nil)
-        if found.nil?
-          found = value.inspect
-          found = "#{found[0, 60]}…" if found.length > 61
-        end
-        detail = "expected #{type}, got #{found}"
+      def self.mismatch(type, value, path, wording: Wording::Ruby, found: nil, hint: nil)
+        detail = "expected #{type}, got #{found || wording.found(value)}"
         raise DataError.new(path, hint ? "#{detail}; #{hint}" : detail)
       end
 
@@ -54,15 +51,13 @@ module Typemap
         false
       end
 
-      # The hint for a value a file writes unquoted — a number, a bool, a parser's date-time —
-      # where a String belongs: YAML's `no` is `false`, `1.10` is the Float `1.1`.
+      # Whether a file wrote the value unquoted where a String belongs — a number, a bool, a
+      # parser's date-time: YAML's `no` is `false`, `1.10` is the Float `1.1`.
       #
       # @param value [Object]
-      # @return [String, nil]
-      def self.quote_hint(value)
-        return if value.nil? || [String, Symbol, Array, Hash].any? { |klass| value.is_a?(klass) }
-
-        "quote it to make it a string"
+      # @return [Boolean]
+      def self.unquoted?(value)
+        !value.nil? && [String, Symbol, Array, Hash].none? { |klass| value.is_a?(klass) }
       end
 
       # A String a number's quotes were put around, `"70"`. Not what `Integer()` takes: `"0x1A"`
@@ -83,18 +78,19 @@ module Typemap
       # @!attribute [r] klass
       #   @return [Class] `Integer`, `Float` or `String`
       Scalar = Data.define(:klass) do
-        def load(value, path, _session, _base)
+        def load(value, path, session, _base)
           return value if value.is_a?(klass)
 
           whole = Type.whole_number(value, klass)
           return whole unless whole.nil?
 
+          wording = session.wording
           hint = if klass == String
-                   Type.quote_hint(value)
+                   wording.quote(value) if Type.unquoted?(value)
                  elsif value.is_a?(String) && Type::NUMBER_TEXT.fetch(klass).match?(value)
-                   "remove the quotes"
+                   wording.unquote
                  end
-          Type.mismatch(self, value, path, hint: hint)
+          Type.mismatch(self, value, path, wording: wording, hint: hint)
         end
 
         def dump(value, _mapper, path) = (value.is_a?(klass) ? value : Type.mismatch(self, value, path))
@@ -108,10 +104,11 @@ module Typemap
 
       # `bool`: `true` or `false`.
       Bool = Data.define do
-        def load(value, path, _session, _base)
+        def load(value, path, session, _base)
           return value if accepts?(value)
 
-          Type.mismatch(self, value, path, hint: ("remove the quotes" if %w[true false].include?(value)))
+          wording = session.wording
+          Type.mismatch(self, value, path, wording: wording, hint: (wording.unquote if %w[true false].include?(value)))
         end
 
         def dump(value, _mapper, path) = (accepts?(value) ? value : Type.mismatch(self, value, path))
@@ -129,10 +126,12 @@ module Typemap
       # @!attribute [r] values
       #   @return [Array<String, Integer, Float, Boolean>]
       Literals = Data.define(:values) do
-        def load(value, path, _session, _base)
+        def load(value, path, session, _base)
           return value if accepts?(value)
 
-          Type.mismatch(self, value, path, hint: (Type.quote_hint(value) if values.all?(String)))
+          wording = session.wording
+          hint = (wording.quote(value) if values.all?(String) && Type.unquoted?(value))
+          Type.mismatch(self, value, path, wording: wording, hint: hint)
         end
 
         def dump(value, _mapper, path) = (accepts?(value) ? value : Type.mismatch(self, value, path))
@@ -164,7 +163,8 @@ module Typemap
 
       # `Array[T]`: an Array whose every element is a `T`; an element's path is `key[3]`. A lone `T`
       # where the Array belongs — TOML's `[server]` for `[[server]]` — raises
-      # `server: expected Array[Server], got a single Server; wrap it in an array`.
+      # `server: expected Array[Server], got a single Server; wrap it in an array`, the fix in the
+      # load's {Wording}.
       #
       # An entry whose class has a class method `entry_name(raw)` is named in its errors after its
       # index — `server[1] "grok".url: required` — `raw` being the entry as a file would hold it:
@@ -216,11 +216,12 @@ module Typemap
         # @raise [DataError] always
         def single(value, path, session)
           spelled = to_s(short: true)
+          wording = session.wording
           if !value.nil? && Type.loads? { element.load(value, path, session, nil) }
             Type.mismatch(spelled, value, path, found: "a single #{element.to_s(short: true)}",
-                                                hint: "wrap it in an array")
+                                                hint: wording.wrap(path, value.is_a?(Hash)))
           end
-          Type.mismatch(spelled, value, path)
+          Type.mismatch(spelled, value, path, wording: wording)
         end
 
         # @return [Object] the block's result
@@ -260,7 +261,7 @@ module Typemap
       #   @return [Object] the values' type
       HashOf = Data.define(:value) do
         def load(raw, path, session, _base)
-          Type.mismatch(to_s(short: true), raw, path) unless raw.is_a?(Hash)
+          Type.mismatch(to_s(short: true), raw, path, wording: session.wording) unless raw.is_a?(Hash)
           Type.string_keys(raw, path).to_h { |key, item| [key, value.load(item, Type.child(path, key), session, nil)] }
         end
 
@@ -291,12 +292,8 @@ module Typemap
       # raises. Keys are Strings all the way down, a Symbol taken as its String. `nil` in its own
       # place needs `Object?`, as every type does. See `D_object_plain_data`.
       Plain = Data.define do
-        def load(value, path, _session, _base) = dump(value, nil, path)
-
-        def dump(value, _mapper, path)
-          Type.mismatch(self, value, path) if value.nil?
-          Type.plain(value, path)
-        end
+        def load(value, path, session, _base) = copy(value, path, session.wording)
+        def dump(value, _mapper, path) = copy(value, path, Wording::Ruby)
 
         def each_object(_value, _mapper, _path) = nil
         def accepts?(value) = !value.nil? && Type.plain?(value)
@@ -304,6 +301,13 @@ module Typemap
         def numeric? = false
         def nested_classes = []
         def to_s(**) = "Object"
+
+        private
+
+        def copy(value, path, wording)
+          Type.mismatch(self, value, path, wording: wording) if value.nil?
+          Type.plain(value, path, wording)
+        end
       end
 
       # A class of the app's own — a data class or an accessor class — loaded from a Hash by
@@ -350,14 +354,15 @@ module Typemap
       #
       # @param value [Object]
       # @param path [String]
+      # @param wording [Module] the {Wording} that spells a value no type loads
       # @return [Object] the copy
       # @raise [DataError] on a value no Typemap type loads, or a key neither String nor Symbol
-      def self.plain(value, path)
+      def self.plain(value, path, wording)
         case value
-        when Array then value.each_with_index.map { |item, i| plain(item, "#{path}[#{i}]") }
-        when Hash then string_keys(value, path).to_h { |key, item| [key, plain(item, child(path, key))] }
+        when Array then value.each_with_index.map { |item, i| plain(item, "#{path}[#{i}]", wording) }
+        when Hash then string_keys(value, path).to_h { |key, item| [key, plain(item, child(path, key), wording)] }
         when *PLAIN_SCALARS then value
-        else mismatch("plain data (String, Integer, Float, bool, nil, Array or Hash)", value, path)
+        else mismatch("plain data (String, Integer, Float, bool, nil, Array or Hash)", value, path, wording: wording)
         end
       end
 

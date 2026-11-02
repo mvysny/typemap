@@ -109,7 +109,7 @@ RSpec.describe Typemap::Mapper, "naming an array entry" do
 
     it "gives entry_name String keys, whatever the file used" do
       error = load_error(EntryNameSpec::Config, { servers: [{ id: "grok", url: 1 }] })
-      assert_equal 'servers[0] "grok".url: expected String, got 1; quote it to make it a string', error.message
+      assert_equal 'servers[0] "grok".url: expected String, got Integer 1', error.message
     end
 
     it "names an entry that fails the validation, from the finished object with its defaults" do
@@ -129,13 +129,13 @@ RSpec.describe Typemap::Mapper, "naming an array entry" do
     end
 
     it "leaves the bare index when the entry is no Hash, or entry_name gives nothing" do
-      assert_equal "servers[0]: expected Server, got 1",
+      assert_equal "servers[0]: expected Server, got Integer 1",
                    load_error(EntryNameSpec::Config, { "servers" => [1] }).message
-      assert_equal "servers[0].id: expected String, got 7; quote it to make it a string",
+      assert_equal "servers[0].id: expected String, got Integer 7",
                    load_error(EntryNameSpec::Config, { "servers" => [{ "id" => 7, "url" => "u" }] }).message
       assert_equal "unnamed[0].x: unknown key; Unnamed has id",
                    load_error(EntryNameSpec::Config, { "unnamed" => [{ "x" => 1 }] }).message
-      assert_equal "plain[0].id: expected Integer, got \"x\"",
+      assert_equal "plain[0].id: expected Integer, got String \"x\"",
                    load_error(EntryNameSpec::Config, { "plain" => [{ "id" => "x" }] }).message
     end
 
@@ -149,7 +149,7 @@ RSpec.describe Typemap::Mapper, "naming an array entry" do
       assert_output(nil, /broken\[0\] left unnamed, EntryNameSpec::Broken\.entry_name: KeyError/) do
         error = load_error(EntryNameSpec::Config, { "broken" => [{ "id" => "x" }] })
       end
-      assert_equal 'broken[0].id: expected Integer, got "x"', error.message
+      assert_equal 'broken[0].id: expected Integer, got String "x"', error.message
     end
 
     it "keeps a Hash entry's path as its key" do
@@ -168,13 +168,13 @@ RSpec.describe Typemap::Mapper, "naming an array entry" do
     it "names an entry from its other properties when one won't dump" do
       config = EntryNameSpec::Config.new(servers: [server("local"), server("grok", 5)])
       error = assert_raises(Typemap::DataError) { mapper.dump(config) }
-      assert_equal 'servers[1] "grok".url: expected String, got 5', error.message
+      assert_equal 'servers[1] "grok".url: expected String, got Integer 5', error.message
     end
 
     it "leaves the bare index when the name itself won't dump" do
       config = EntryNameSpec::Config.new(servers: [server(5)])
       error = assert_raises(Typemap::DataError) { mapper.dump(config) }
-      assert_equal "servers[0].id: expected String, got 5", error.message
+      assert_equal "servers[0].id: expected String, got Integer 5", error.message
     end
   end
 end

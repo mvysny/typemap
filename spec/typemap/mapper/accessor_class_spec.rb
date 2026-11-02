@@ -87,7 +87,7 @@ RSpec.describe Typemap::Mapper, "with an accessor class" do
 
   it "rejects a non-boolean" do
     error = assert_raises(Typemap::DataError) { mapper.load(AccessorClassSpec::State, { "log_pane_visible" => "no" }) }
-    assert_equal 'log_pane_visible: expected bool, got "no"', error.message
+    assert_equal 'log_pane_visible: expected bool, got String "no"', error.message
   end
 
   it "never changes a default shared beyond the load" do

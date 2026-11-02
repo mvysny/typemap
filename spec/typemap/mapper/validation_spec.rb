@@ -81,7 +81,7 @@ RSpec.describe Typemap::Mapper, "validating the result" do
 
     it "checks types before the limits, which assume them" do
       error = assert_raises(Typemap::DataError) { mapper.dump(range("a", 1)) }
-      assert_equal 'low: expected Integer, got "a"', error.message
+      assert_equal 'low: expected Integer, got String "a"', error.message
     end
   end
 end

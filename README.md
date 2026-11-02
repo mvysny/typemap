@@ -28,16 +28,16 @@ class Ballooning < Data.define(:raise_at_percent, :shrink_at_percent, :pinned_vm
 end
 
 mapper = Typemap::Mapper.new
-ballooning = mapper.load(Ballooning, Tomlrb.load_file("ballooning.toml"))
+ballooning = mapper.load(Ballooning, Tomlrb.load_file("ballooning.toml"), source: :toml)
 ```
 
 A file that does not fit raises `Typemap::DataError`, with the path of the offending value and,
-for a classic mistake, the fix:
+for a classic mistake, the fix in the file's own syntax:
 
 ```
 raise_at_percent: expected Integer, got "70"; remove the quotes
 raise_at_percent: must be 1 to 100, got 170
-pinned_vms: expected Array[String], got a single String; wrap it in an array
+pinned_vms: expected Array[String], got a single String; wrap it in [ ]
 pinned_vms[1]: expected String, got 7; quote it to make it a string
 rasie_at_percent: unknown key, did you mean raise_at_percent?
 rasie: unknown key; Ballooning has raise_at_percent, shrink_at_percent, pinned_vms
@@ -49,13 +49,24 @@ raise_at_percent must be above shrink_at_percent
 ```ruby
 mapper = Typemap::Mapper.new
 
-config = mapper.load(Config, Tomlrb.load_file(path))                  # Tomlrb, JSON, YAML.safe_load: any Hash
-state  = mapper.load(State, JSON.load_file(path), unknown: :ignore)   # drop keys a newer version wrote
+config = mapper.load(Config, Tomlrb.load_file(path), source: :toml)                # Tomlrb, JSON, YAML.safe_load: any Hash
+state  = mapper.load(State, JSON.load_file(path), source: :json, unknown: :ignore)  # drop keys a newer version wrote
 File.write(path, JSON.pretty_generate(mapper.dump(state)))            # String keys, nested objects as Hashes
 ```
 
 - **A key present replaces the default; a key absent keeps it.** A nested Hash loads onto the
   default's nested object, so a file that sets one nested key keeps the other nested defaults.
+- **`source:` words an error for where the Hash came from**: `:toml`, `:json`, `:yaml`, or
+  `:ruby`, the default, for a Hash built in code. The mistake is the same in every source; the
+  fix is spelled in its syntax:
+
+  | `source:` | `[server]` where an array belongs | `7` where a String belongs |
+  |---|---|---|
+  | `:ruby` | `wrap it in an array` | `got Integer 7` |
+  | `:toml` | `write [[server]], not [server], or server = [{…}]` | `got 7; quote it to make it a string` |
+  | `:json` | `wrap it in [ ]` | `got 7; quote it to make it a string` |
+  | `:yaml` | `put "- " before it` | `got 7; quote it to make it a string` |
+
 - **An unknown key raises**, unless `unknown: :ignore`.
 - **Keys may be Strings or Symbols** (`JSON.load_file(path, symbolize_names: true)` works).
 - **`dump` writes properties in declaration order** and checks every value as `load` would — its
@@ -277,14 +288,14 @@ MAPPER = Typemap::Mapper.new
 
 def load_config
   file = Paths.config_file("myapp")
-  MAPPER.load(Config, file ? Tomlrb.load_file(file) : {})   # no file: the defaults, or `api_key: required`
+  MAPPER.load(Config, file ? Tomlrb.load_file(file) : {}, source: :toml)   # no file: the defaults, or `api_key: required`
 rescue Typemap::DataError => e
   abort "#{file || "config.toml"}: #{e.message}"   # ~/.config/myapp/config.toml: port: expected Integer, got "80"; remove the quotes
 end
 
 def load_state
   file = Paths.state_file("myapp")
-  File.exist?(file) ? MAPPER.load(State, JSON.load_file(file), unknown: :ignore) : State.new
+  File.exist?(file) ? MAPPER.load(State, JSON.load_file(file), source: :json, unknown: :ignore) : State.new
 end
 
 def save_state(state)

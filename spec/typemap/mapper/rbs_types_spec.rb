@@ -25,7 +25,7 @@ RSpec.describe Typemap::Mapper::RBSTypes do
 
   it "rejects a value the signature's type rejects" do
     error = assert_raises(Typemap::DataError) { mapper.load(RbsApp::Ballooning, { "mode" => "loud" }) }
-    assert_equal 'mode: expected "short" | "verbose", got "loud"', error.message
+    assert_equal 'mode: expected "short" | "verbose", got String "loud"', error.message
   end
 
   it "takes constrain type: for a property the signature leaves out" do

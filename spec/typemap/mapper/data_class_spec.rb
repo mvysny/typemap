@@ -94,12 +94,12 @@ RSpec.describe Typemap::Mapper, "with a data class" do
 
     it "raises when the root is not a Hash" do
       error = assert_raises(Typemap::DataError) { mapper.load(DataClassSpec::Ballooning, [1]) }
-      assert_equal "expected Ballooning, got [1]", error.message
+      assert_equal "expected Ballooning, got Array [1]", error.message
     end
 
     it "raises when a nested value is not a Hash" do
       error = assert_raises(Typemap::DataError) { mapper.load(DataClassSpec::Config, { "ballooning" => 5 }) }
-      assert_equal "ballooning: expected Ballooning, got 5", error.message
+      assert_equal "ballooning: expected Ballooning, got Integer 5", error.message
     end
 
     it "rejects an unknown unknown: policy" do
@@ -123,7 +123,7 @@ RSpec.describe Typemap::Mapper, "with a data class" do
     it "raises on a value its type rejects, with its path" do
       broken = DataClassSpec::Ballooning.new(pinned_vms: [:sym])
       error = assert_raises(Typemap::DataError) { mapper.dump(broken) }
-      assert_equal "pinned_vms[0]: expected String, got :sym", error.message
+      assert_equal "pinned_vms[0]: expected String, got Symbol :sym", error.message
     end
   end
 end
