@@ -11,46 +11,80 @@ are the messages Typemap gave:
 | `raise_at_percent = 70.5` | `ballooning.raise_at_percent: expected Integer, got 70.5` | good |
 | `raise_at_percent = 170` | `ballooning.raise_at_percent: 170 is not in 1..100` | readable, but Ruby syntax |
 | `min_actual_gib = 0` | `ballooning.min_actual_gib: 0 is not in 1..` | Ruby syntax a user can't read |
-| `rasie_at_percent = 70` | `ballooning.rasie_at_percent: unknown key; Config::Ballooning has raise_at_percent, shrink_at_percent, min_actual_gib` | names a Ruby class; doesn't say which key was meant |
+| `rasie_at_percent = 70` | `ballooning.rasie_at_percent: unknown key; Config::Ballooning has raise_at_percent, shrink_at_percent, min_actual_gib` | doesn't say which key was meant |
 | `[balooning]` | `balooning: unknown key; Config has ballooning` | the same |
-| `ballooning = 5` | `ballooning: expected Config::Ballooning, got 5` | names a Ruby class where the file needs a table |
+| `ballooning = 5` | `ballooning: expected Config::Ballooning, got 5` | good: the class name is concrete, `got 5` shows what's wrong |
 | `validate` raises | `ballooning: raise_at_percent (50) must be above shrink_at_percent (55)` | good |
 
-The key path and the offending value are always there, which is most of the job. Three things
-fall short.
+The key path and the offending value are always there, which is most of the job. The rest is
+agreed; what follows is how each lands.
 
-## The gaps
+## 1. A misspelled key gets a suggestion
 
-- **A class name where the file needs a shape.** `expected Config::Ballooning` means nothing to
-  someone editing a TOML file; `expected a table` (or `an object`, since Typemap doesn't know the
-  format) does. The same goes for `Config::Ballooning has …` in the unknown-key message: the
-  path already names where the error is, so `expected one of raise_at_percent, …` is enough.
-- **Ranges printed with `inspect`.** `1..` and `1...10` are Ruby. Wording per range shape reads
-  better: `must be at least 1`, `must be at most 100`, `must be 1 to 100`, `must be below 10`. A
-  list `in:` reads fine as it is (`must be one of "short", "verbose"`).
-- **No suggestion for a misspelled key.** A misspelled key is the most common config error, and
-  `DidYouMean::SpellChecker`, part of Ruby since 2.3 and so no runtime dependency, makes the fix
-  obvious: `rasie_at_percent: unknown key, did you mean raise_at_percent?`. With no close match,
-  the list of keys stays.
+`rasie_at_percent: unknown key, did you mean raise_at_percent?` — `DidYouMean::SpellChecker`,
+a default gem, so no runtime dependency. `mapper.rb` requires `"did_you_mean"` itself:
+under `ruby --disable-did_you_mean` the constant is undefined until required (checked).
 
-The value shown is still `inspect`: `got "70"` reads well in TOML, JSON and YAML alike, and a
-Hash or Array value is rare enough in a mismatch that its Ruby form can stay.
+- **Every match the checker returns, no cutoff of our own.** On the spike's keys it returns one
+  (`rasie_at_percent` → `raise_at_percent`, `balooning` → `ballooning`); `raise_bt` against
+  `raise_at, raise_by` returns both, and both are worth showing.
+- **A match replaces the key list**; with none, the message stays as it is today:
+  `unknown key; Config::Ballooning has raise_at_percent, …`. The class name stays: a concrete
+  Ruby type, as in a type mismatch.
+- **A misspelled required key reports the typo, not `required`**: `reject_unknown` runs before
+  `fresh_base`. It already does; a spec pins it.
 
-Out of scope here: **every error at once** (`D_validation_phase`: nothing has asked for it, and
-virtui's config, the first to ask, chose to fix one error per run), and **line numbers**, which
-the parsers (Tomlrb, `JSON`) don't keep in the Hash they return. The key path stands in for
-them.
+## 2. Ranges worded per shape
+
+`limits.rb` prints `allowed.inspect` today. Instead, the value last, as `got` in a type mismatch:
+
+| `in:` | Message |
+|---|---|
+| `1..100` | `must be 1 to 100, got 170` |
+| `1..` | `must be at least 1, got 0` |
+| `..100` | `must be at most 100, got 170` |
+| `...10` | `must be below 10, got 10` |
+| `1...10` | `must be at least 1 and below 10, got 10` — not `1 to 9`, which a Float range can't say |
+| `1.0..` / `1.0...` | as above, with the Float ends |
+| `%w[a b]` | `must be one of "a", "b", got "c"` |
+
+`plan.rb:138` wraps the same message as `its default #{e.message}` for a `DefinitionError`;
+`its default must be 1 to 3, got 0` still reads.
+
+## 3. Types keep their RBS spelling; "table" goes
+
+A type mismatch names the type as RBS spells it, on load and dump alike:
+`ballooning: expected Config::Ballooning, got 5`, `expected Hash[String, Integer], got 5`. A
+concrete Ruby type beats a format's word for the shape: TOML's "table", YAML's "mapping" and
+JSON's "object" each mean something only to that format's users, and a class name is exact.
+
+- **One message, not two.** `Session#load_object` (`mapper.rb:172`) says `expected a table of
+  Config's properties, got [1]`, reached only at the root since `ClassRef#load` checks first. It
+  becomes `Type.mismatch`'s `expected Config, got [1]`.
+- **"table" becomes "Hash"** where it names the shape rather than TOML's `[section]`: the README's
+  type table (`a Hash of T`, `a Hash, loaded into your class`) and line 54, the doc comments at
+  `mapper.rb:50` and `type.rb:130`, `:155`, `:196`. README line 132 and `D_validation_phase`
+  speak of a TOML `[llm]` table and stay.
+
+The value shown stays `inspect`: `got "70"` reads well in TOML, JSON and YAML alike.
+
+## Known gap: `format:`
+
+`"abc" does not match /\A\d+\z/` prints a Regexp, which the person editing the file can't read,
+and no wording fixes that. Not a `description:` option on `constrain`: an app that needs a
+readable message raises it from `validate`, in its own words (`D_functions_over_rules`).
+
+## Out of scope
+
+**Every error at once** (`D_validation_phase`: nothing has asked for it, and virtui's config, the
+first to ask, chose to fix one error per run), and **line numbers**, which the parsers (Tomlrb,
+`JSON`) don't keep in the Hash they return. The key path stands in for them.
 
 ## Where it lands
 
-`Type.mismatch` (`lib/typemap/mapper/type.rb`) for a class type, `Limits`
-(`lib/typemap/mapper/limits.rb`) for the range wording, the unknown-key raise in
-`lib/typemap/mapper.rb` for the suggestion; the README's error examples and
-`spec/typemap/mapper/data_class_spec.rb`'s `assert_match` on the class name change with them.
-
-## Open questions
-
-- `Q_shape_word` — `expected a table` (TOML's word, and what most config files are) or
-  `expected an object` (JSON's)? Typemap is format-agnostic. `a Hash` is accurate but Ruby again.
-- `Q_did_you_mean_cutoff` — take `SpellChecker`'s default distance as it is, or show only the
-  best match? Several close keys (`raise_at`, `raise_by`) argue for listing them all.
+- `lib/typemap/mapper/limits.rb`: the range and list wording.
+- `lib/typemap/mapper.rb`: the unknown-key raise and the root non-Hash raise.
+- "table" → "Hash" in the README and doc comments listed under 3.
+- The README's error examples (lines 37–40); the specs asserting the old strings
+  (`validation_spec`, `data_class_spec`, `type_spec`, `rbs_types_spec`, `definition_error_spec`).
+- CHANGELOG: `**Breaking:**` the messages change; an app matching on them updates its pattern.
